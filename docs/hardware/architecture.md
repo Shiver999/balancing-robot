@@ -64,7 +64,73 @@ The pack is assumed to be 4S1P: four matched 2500 mAh 18650 Li-ion cells in seri
 | USB-C module and pack | Module has USB-C PD input/output and direct battery discharge connection | User confirms no cell balancing and no module-imposed discharge-current limit. Confirm exact connector polarity and wiring from the board documentation. Treat battery, wiring, connectors, fuse, and drivers as the current-limiting/safety elements. |
 | Dedicated balance charger to pack | Compatible 4S Li-ion charger connected to the pack's balance port | Use for balancing charge; disconnect robot load. Do not parallel charge sources unless an engineered power path explicitly allows it. |
 
-Keep the IMU and encoder signal wiring short and away from switching nodes and motor phase leads. If an SPI bus is shared, confirm that every device tolerates the same bus voltage and releases MISO when not selected; otherwise use separate buses or suitable isolation.
+### Provisional ESP32-S3 pin map
+
+This is a planning pin map only. It must be re-checked against the exact ESP32-S3 development board revision and the final driver/sensor board schematics before powering the hardware. This is a placeholder for wiring documentation, not a final safety-critical design.
+
+```text
+ESP32-S3 (provisional)
+
+IMU (SPI example)
+  IMU SCK  -> GPIO 7
+  IMU MISO -> GPIO 6
+  IMU MOSI -> GPIO 5
+  IMU CS   -> GPIO 4
+  IMU VDD  -> 3.3 V
+  IMU GND  -> common logic ground
+
+Left encoder (SPI example)
+  ENC_L SCK  -> GPIO 18
+  ENC_L MISO -> GPIO 17
+  ENC_L MOSI -> GPIO 16
+  ENC_L CS   -> GPIO 15
+  ENC_L VDD  -> 3.3 V
+  ENC_L GND  -> common logic ground
+
+Right encoder (SPI example)
+  ENC_R SCK  -> GPIO 14
+  ENC_R MISO -> GPIO 13
+  ENC_R MOSI -> GPIO 12
+  ENC_R CS   -> GPIO 11
+  ENC_R VDD  -> 3.3 V
+  ENC_R GND  -> common logic ground
+
+Left driver board
+  PWM_A -> GPIO 8
+  PWM_B -> GPIO 9
+  PWM_C -> GPIO 10
+  EN    -> GPIO 20
+  FAULT -> GPIO 21
+  GND   -> common signal ground
+
+Right driver board
+  PWM_A -> GPIO 22
+  PWM_B -> GPIO 23
+  PWM_C -> GPIO 24
+  EN    -> GPIO 25
+  FAULT -> GPIO 26
+  GND   -> common signal ground
+
+Safety / status
+  ESTOP_IN -> GPIO 27  (independent hardware disable input)
+  LED      -> GPIO 2
+  VBAT_SENSE -> GPIO 33 via divider
+
+Debug UART
+  TX -> GPIO 43
+  RX -> GPIO 44
+
+Common rails
+  3V3 -> IMU, encoders, logic rails (verify regulator and current draw)
+  GND -> common signal ground; keep motor current return out of sensor ground path
+```
+
+Key constraints:
+- Keep the IMU and encoder signal wiring short and away from switching nodes and motor phase leads.
+- If an SPI bus is shared, confirm that every device tolerates the same bus voltage and releases MISO when not selected; otherwise use separate buses or suitable isolation.
+- The final hardware-disable path must be physically independent of firmware and phone connectivity.
+- Do not assign the final GPIO map until the exact board revision is known and the motor-driver input polarity, fault, and enable behavior are verified.
+
 
 ## Safety and bring-up sequence
 
