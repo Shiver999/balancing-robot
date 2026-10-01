@@ -1,0 +1,15 @@
+# ESP-IDF outputs and local configuration
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/managed_components/
+
+# Android / Gradle outputs and machine-local SDK path
+android/.gradle/
+android/**/build/
+android/local.properties
+
+# IDE / OS noise
+.vscode/settings.json
+.DS_Store
+*.swp
