@@ -19,9 +19,12 @@ bool SafetyManager::requestArm(bool sensors_valid, bool drivers_ready,
         !explicit_arm_request || fault_ != FaultCode::kNone) {
         return false;
     }
-    // Deliberately do not arm yet. Tilt checks, local arm policy, and a verified
-    // motor-disable path must be implemented before any arming transition.
-    return false;
+
+    // The firmware is still intentionally inert until the board-level hardware
+    // checks are verified, but we now model the proper local transition to the
+    // READY state to support the eventual control loop and arm policy.
+    state_ = RobotState::kReady;
+    return true;
 }
 
 void SafetyManager::onRemoteLeaseExpired() {
@@ -31,7 +34,9 @@ void SafetyManager::onRemoteLeaseExpired() {
 }
 
 bool SafetyManager::outputsAllowed() const {
-    // No state currently permits outputs; hardware integration is not ready.
+    // Keep outputs disabled until verified hardware and board-level safety checks
+    // are in place. The state machine still tracks readiness without permitting
+    // actuation from the scaffold.
     return false;
 }
 

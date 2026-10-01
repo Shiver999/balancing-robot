@@ -6,8 +6,9 @@ idf_component_register(
         "control/balance_controller.cpp"
         "comms/protocol.cpp"
         "drivers/safe_stubs.cpp"
+        "drivers/sensor_stubs.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES freertos log
+    REQUIRES freertos log esp_timer
 )
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_17)
