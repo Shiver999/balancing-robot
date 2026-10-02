@@ -14,6 +14,8 @@ public:
     virtual void delayMs(std::uint32_t milliseconds) = 0;
 };
 
+// Transport-neutral register access; one read must preserve the requested burst
+// under a single chip select so status and axis data are acquired together.
 class ImuRegisterIo {
 public:
     virtual ~ImuRegisterIo() = default;
@@ -22,6 +24,8 @@ public:
     virtual esp_err_t writeRegister(std::uint8_t address, std::uint8_t value) = 0;
 };
 
+// Transport-neutral AS5048A frame exchange. A response belongs to the previous
+// command, so the sensor driver explicitly sends a trailing NOP.
 class EncoderFrameIo {
 public:
     virtual ~EncoderFrameIo() = default;

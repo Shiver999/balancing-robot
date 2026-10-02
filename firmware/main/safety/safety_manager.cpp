@@ -8,6 +8,7 @@ void SafetyManager::enterDisarmed() {
     }
 }
 
+// Normal disarming cannot clear this fault; recovery policy is not implemented.
 void SafetyManager::latchFault(FaultCode fault) {
     fault_ = fault;
     state_ = RobotState::kFault;
@@ -24,6 +25,7 @@ bool SafetyManager::requestArm(bool sensors_valid, bool drivers_ready,
     return false;
 }
 
+// Preserve all other states, particularly latched faults, when a lease expires.
 void SafetyManager::onRemoteLeaseExpired() {
     if (state_ == RobotState::kBalancing) {
         state_ = RobotState::kRemoteLost;

@@ -19,6 +19,8 @@ constexpr std::uint16_t kMaxLeaseMs = 200;
 constexpr std::uint8_t kFlagArmRequest = 1U << 0U;
 constexpr std::uint8_t kFlagDeadmanActive = 1U << 1U;
 
+// Decode structural policy only, without changing request on failure. Successful
+// decoding still needs mailbox limit/replay checks before consumption.
 esp_err_t decodeControlPacket(const std::uint8_t* bytes, std::size_t length,
                               std::int64_t received_at_us,
                               MotionRequest* request);
@@ -35,8 +37,10 @@ struct CommandLimits {
 class CommandMailbox {
 public:
     explicit CommandMailbox(CommandLimits limits = {}) : limits_(limits) {}
+    // Publish a replacement only after all checks pass; rejection never renews a lease.
     esp_err_t accept(const std::uint8_t* bytes, std::size_t length,
                      std::int64_t received_at_us);
+    // Return a disabled empty intent at expiry or if the caller clock moves backward.
     MotionRequest current(std::int64_t now_us) const;
     // Only for a new authenticated session while disarmed; expiry does not
     // reset replay protection. Reset clears both the command and sequence.

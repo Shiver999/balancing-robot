@@ -16,6 +16,7 @@
 
 namespace robot { MotorDriver& safeMotorDriver(); }
 
+// Assertions remain active in all build types and terminate the current CTest suite.
 #define CHECK(condition) do { if (!(condition)) { \
     std::fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #condition); \
     std::exit(1); \
@@ -23,13 +24,16 @@ namespace robot { MotorDriver& safeMotorDriver(); }
 
 namespace {
 using Packet = std::array<std::uint8_t, robot::protocol::kControlPacketSize>;
+// Synthetic fixture limits; these are not measured/approved robot operating limits.
 constexpr robot::protocol::CommandLimits kTestLimits{2.0F, 1.0F, 200};
 
+// Independent fixture encoder keeps packet decoding tests independent of production helpers.
 void putU16(Packet& packet, std::size_t offset, std::uint16_t value) {
     packet[offset] = static_cast<std::uint8_t>(value);
     packet[offset + 1] = static_cast<std::uint8_t>(value >> 8U);
 }
 
+// Serialize float bits without pointer punning or host byte-order dependence.
 void putFloat(Packet& packet, std::size_t offset, float value) {
     std::uint32_t bits = 0;
     std::memcpy(&bits, &value, sizeof(bits));
@@ -38,6 +42,7 @@ void putFloat(Packet& packet, std::size_t offset, float value) {
     }
 }
 
+// Build a structurally valid packet that tests can mutate one field at a time.
 Packet packet(std::uint16_t sequence = 1, float forward = 0.0F,
               float yaw = 0.0F, std::uint8_t flags = 3, std::uint16_t lease = 200) {
     Packet bytes{};
@@ -51,6 +56,7 @@ Packet packet(std::uint16_t sequence = 1, float forward = 0.0F,
     return bytes;
 }
 
+// Check cross-platform bytes and reject malformed inputs without partial publication.
 void protocolTests() {
     // Same golden vector as the Android encoder test, with explicit test limits.
     const Packet golden{1, 1, 0x34, 0x12, 0, 0, 0xC0, 0x3F,
@@ -97,6 +103,7 @@ void protocolTests() {
     CHECK(robot::protocol::decodeControlPacket(bytes.data(), bytes.size(), 0, &request) == ESP_OK);
 }
 
+// Verify limits, expiry boundaries and serial-number ordering including replay after expiry.
 void mailboxTests() {
     auto accept = [](robot::protocol::CommandMailbox& box, const Packet& bytes, std::int64_t time = 0) {
         return box.accept(bytes.data(), bytes.size(), time);
@@ -146,6 +153,7 @@ void mailboxTests() {
     CHECK(box.current(near_max + 1).lease_ms == 200); // No overflowing deadline addition.
 }
 
+// Spy on startup ordering and writes; no physical hardware behavior is simulated.
 class RecordingDriver final : public robot::MotorDriver {
 public:
     esp_err_t initialize() override { CHECK(disables == 1); return result; }
@@ -158,6 +166,7 @@ public:
     int applies{0};
 };
 
+// Even healthy fixture hardware cannot make the scaffold arm or apply motor commands.
 void safetyTests() {
     robot::SafetyManager safety;
     CHECK(safety.state() == robot::RobotState::kBoot && !safety.outputsAllowed());
@@ -193,6 +202,7 @@ void safetyTests() {
     CHECK(!command.enable && command.left_output == 0 && command.right_output == 0);
 }
 
+// Seed stale valid outputs to prove unavailable adapters overwrite them on every failure.
 void sensorTests() {
     auto& imu = robot::defaultImu();
     auto& encoders = robot::defaultEncoders();
@@ -213,6 +223,7 @@ void sensorTests() {
 }
 }  // namespace
 
+// CTest selects one named suite per process for clear failure attribution.
 int main(int argc, char** argv) {
     if (argc != 2) return 2;
     const std::string suite = argv[1];

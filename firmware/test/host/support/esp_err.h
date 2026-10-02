@@ -1,6 +1,7 @@
 #pragma once
 
 // Host-only stand-in for ESP-IDF error constants; never on the target include path.
+// Match only constants needed by the real sources and host fixtures; not a full IDF API.
 using esp_err_t = int;
 constexpr esp_err_t ESP_OK = 0;
 constexpr esp_err_t ESP_FAIL = -1;

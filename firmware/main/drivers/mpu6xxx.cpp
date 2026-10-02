@@ -10,6 +10,7 @@ constexpr std::uint8_t kInterruptStatus = 0x3A;
 constexpr float kAccelerationScale = 9.80665F / 8192.0F; // +/-4 g
 constexpr float kGyroScale = 0.017453292519943295F / 65.5F; // +/-500 deg/s -> rad/s
 
+// MPU register words are signed big-endian, unlike the little-endian phone protocol.
 std::int16_t signedBe(const std::uint8_t* bytes) {
     const auto bits = static_cast<std::uint16_t>(
         (static_cast<std::uint16_t>(bytes[0]) << 8U) | bytes[1]);
@@ -26,6 +27,7 @@ esp_err_t Mpu6xxx::initialize() {
     std::uint8_t id = 0;
     esp_err_t result = io_.readRegisters(kWhoAmI, &id, 1);
     if (result != ESP_OK) return result;
+    // Similar module labels are insufficient: only the documented chips are accepted.
     if (id != 0x70 && id != 0x71) return ESP_ERR_NOT_SUPPORTED;
     result = io_.writeRegister(kPowerManagement, 0x80); // Device reset
     if (result != ESP_OK) return result;
@@ -46,6 +48,7 @@ esp_err_t Mpu6xxx::initialize() {
         if (result != ESP_OK) return result;
     }
     clock_.delayMs(100); // Gyro startup and filter settling; never in read().
+    // Verify writes rather than assuming an electrically responsive chip accepted them.
     for (const auto& setting : settings) {
         std::uint8_t actual = 0;
         result = io_.readRegisters(setting[0], &actual, 1);
@@ -81,6 +84,7 @@ esp_err_t Mpu6xxx::read(ImuSample* sample) {
             return ESP_ERR_INVALID_RESPONSE; // Clipped measurements are not valid.
         }
     }
+    // Read completion is a local timestamp, not a compensated acquisition timestamp.
     const auto timestamp = clock_.nowUs();
     if (timestamp < 0 || timestamp <= last_timestamp_us_) return ESP_ERR_INVALID_STATE;
     sample->timestamp_us = timestamp;

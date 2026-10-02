@@ -20,9 +20,8 @@ esp_err_t RobotApp::start() {
         return driver_result == ESP_OK ? ESP_FAIL : driver_result;
     }
 
-    // Real sensor setup, control-loop startup, and hardware safety checks are
-    // intentionally absent until board pinning and the electrical interface
-    // have been verified.
+    // Control-loop sensor composition and hardware arming checks are absent.
+    // The independent opt-in sensor bench runs from app_main without actuation.
     safety_.enterDisarmed();
     ESP_LOGW(kTag, "Scaffold only: no motor outputs or balance loop are enabled");
     return ESP_OK;

@@ -10,7 +10,9 @@ namespace robot {
 class Mpu6xxx final : public Imu {
 public:
     Mpu6xxx(ImuRegisterIo& io, SensorClock& clock) : io_(io), clock_(clock) {}
+    // Identify/reset the chip, configure the fixed profile, verify it and discard startup status.
     esp_err_t initialize() override;
+    // Clear the output first; only publish a new, unclipped, data-ready raw sample.
     esp_err_t read(ImuSample* sample) override;
     std::uint8_t deviceId() const { return device_id_; }
 

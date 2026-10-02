@@ -27,6 +27,7 @@ esp_err_t EspSensorSpi::initialize() {
             if (pins[i] == pins[j]) return ESP_ERR_INVALID_ARG;
         }
     }
+    // Deselect every module before enabling the shared clock/data peripheral.
     gpio_config_t chip_selects{};
     chip_selects.pin_bit_mask = (1ULL << pins_.imu_cs) | (1ULL << pins_.left_cs) |
                                 (1ULL << pins_.right_cs);
@@ -49,6 +50,7 @@ esp_err_t EspSensorSpi::initialize() {
     bus.max_transfer_sz = 16;
     result = spi_bus_initialize(kHost, &bus, SPI_DMA_DISABLED);
     if (result != ESP_OK) return result;
+    // Device modes are switched while acquiring the bus, before manual CS goes low.
     for (unsigned i = 0; i < 3; ++i) {
         spi_device_interface_config_t device{};
         device.clock_speed_hz = 1000000; // Conservative register/SPI bench rate.
@@ -91,6 +93,7 @@ esp_err_t EspSensorSpi::exchange(Device device, const std::uint8_t* tx,
         result = spi_device_polling_transmit(devices_[index], &transaction);
         esp_rom_delay_us(1); // Hold after the last clock.
     }
+    // Always attempt deselection and release, including transfer-error paths.
     const esp_err_t deselect = gpio_set_level(static_cast<gpio_num_t>(cs[index]), 1);
     esp_rom_delay_us(1); // AS5048A inter-frame CS high >=350 ns.
     spi_device_release_bus(devices_[index]);
@@ -129,6 +132,7 @@ esp_err_t EspEncoderSpi::transfer(std::uint16_t tx, std::uint16_t* rx) {
 
 std::int64_t EspSensorClock::nowUs() const { return esp_timer_get_time(); }
 
+// Round startup waits up to a scheduler tick; measurement reads do not call this.
 void EspSensorClock::delayMs(std::uint32_t milliseconds) {
     vTaskDelay((milliseconds + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS);
 }

@@ -10,6 +10,7 @@
 
 namespace robot {
 
+// Serial-only bring-up: fixed lifetime drivers, one bus owner, no control/telemetry task.
 void runSensorBench() {
     constexpr char tag[] = "sensor_bench";
     static EspSensorSpi bus({CONFIG_ROBOT_SPI_SCK, CONFIG_ROBOT_SPI_MISO, CONFIG_ROBOT_SPI_MOSI,
@@ -28,6 +29,7 @@ void runSensorBench() {
     static As5048aEncoders encoders(left, right, clock,
         {CONFIG_ROBOT_LEFT_ENCODER_DIRECTION, CONFIG_ROBOT_RIGHT_ENCODER_DIRECTION,
          CONFIG_ROBOT_LEFT_ENCODER_ZERO, CONFIG_ROBOT_RIGHT_ENCODER_ZERO, 100.0F, 20000});
+    // Report independent initialization results; failures are not replaced with fake data.
     const auto imu_init = imu.initialize();
     const auto encoder_init = encoders.initialize();
     ESP_LOGI(tag, "IMU init=%s WHO_AM_I=0x%02x; encoders init=%s; MOTOR OUTPUT DISABLED",
@@ -41,6 +43,7 @@ void runSensorBench() {
         WheelMeasurement wheels;
         const auto imu_result = imu.read(&sample);
         const auto wheel_result = encoders.read(&wheels);
+        // Decimate logging to limit serial overhead without slowing normal sensor polling.
         if (count++ % 10 == 0) {
             if (sample.valid) {
                 ESP_LOGI(tag, "imu t=%lld accel_m_s2=(%.3f,%.3f,%.3f) gyro_rad_s=(%.3f,%.3f,%.3f) attitude=unavailable",

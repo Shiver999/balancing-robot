@@ -5,10 +5,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
+/** Encoder contract tests mirror firmware wire fixtures and stateless command policies. */
 class RobotProtocolTest {
+    // Synthetic limits allow moving test commands without setting production robot limits.
     private val limits = CommandLimits(maxForwardVelocityMps = 2f, maxYawRateRadS = 1f)
     private val moving = ControlCommand(1, 1.5f, -0.5f, true, true, 200)
 
+    // Golden vector is also decoded by the firmware host suite.
     @Test
     fun controlPacketMatchesFirmwareLittleEndianLayout() {
         val packet = RobotProtocol.encode(
@@ -34,6 +37,7 @@ class RobotProtocolTest {
         )
     }
 
+    // Default configuration admits stop/release intent while rejecting motion.
     @Test
     fun defaultsPermitOnlyZeroMotion() {
         assertThrows(IllegalArgumentException::class.java) { RobotProtocol.encode(moving) }
@@ -42,6 +46,7 @@ class RobotProtocolTest {
         assertEquals(15, RobotProtocol.encode(stopped).size)
     }
 
+    // NaN/infinity must never reach the wire; test each signed setpoint boundary.
     @Test
     fun rejectsNonfiniteAndOutOfRangeMotion() {
         for (value in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, 2.01f, -2.01f)) {
@@ -56,6 +61,7 @@ class RobotProtocolTest {
         }
     }
 
+    // Each authorization intent flag is required independently for nonzero motion.
     @Test
     fun motionRequiresArmAndDeadman() {
         for (command in listOf(moving.copy(armRequested = false), moving.copy(deadmanActive = false))) {
@@ -63,6 +69,7 @@ class RobotProtocolTest {
         }
     }
 
+    // Serialization cannot truncate invalid identifiers or exceed the lease policy.
     @Test
     fun rejectsBadLeasesAndSequences() {
         for (lease in listOf(0, -1, 201, 65535)) {
@@ -80,6 +87,7 @@ class RobotProtocolTest {
         }
     }
 
+    // Invalid configuration itself must fail, even when a command appears well formed.
     @Test
     fun rejectsInvalidLimitConfiguration() {
         for (invalid in listOf(limits.copy(maxForwardVelocityMps = -1f),
@@ -91,6 +99,7 @@ class RobotProtocolTest {
         }
     }
 
+    // Valid extremes are inclusive; uint16 maximum survives signed JVM short conversion.
     @Test
     fun acceptsInclusiveMotionAndWireBoundaries() {
         for (sequence in listOf(0, 65535)) {

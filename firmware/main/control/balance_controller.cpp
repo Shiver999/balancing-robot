@@ -16,6 +16,7 @@ MotorCommand BalanceController::update(const ImuSample& imu,
     return MotorCommand{};
 }
 
+// There is no controller history to clear until the feedback implementation exists.
 void BalanceController::reset() {}
 
 }  // namespace robot

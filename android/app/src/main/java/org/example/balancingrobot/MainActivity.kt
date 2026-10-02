@@ -12,7 +12,9 @@ import org.example.balancingrobot.connection.BleRobotConnection
 import org.example.balancingrobot.connection.RobotConnection
 import org.example.balancingrobot.protocol.ControlCommand
 
+/** Scaffold screen: transport is unavailable and all actuator controls stay disabled. */
 class MainActivity : Activity() {
+    // Depend on the transport interface so a future verified BLE implementation can replace it.
     private val connection: RobotConnection = BleRobotConnection()
     private var sequence = 0
     private lateinit var statusText: TextView
@@ -24,6 +26,7 @@ class MainActivity : Activity() {
         buildUi()
     }
 
+    /** Construct a small native UI; labels/status expose the current scaffold limitations. */
     private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -44,6 +47,8 @@ class MainActivity : Activity() {
             isEnabled = false
             setOnClickListener { sendZeroSetpoint(arm = true, deadman = false) }
         }
+        // Future hold semantics: both lift and cancellation release arm/dead-man intent.
+        // This disabled button has no periodic lease refresh and cannot drive hardware.
         driveButton = Button(this).apply {
             text = "Hold to drive (unavailable)"
             isEnabled = false
@@ -72,8 +77,10 @@ class MainActivity : Activity() {
         setContentView(root)
     }
 
+    /** Exercise the command boundary with zero motion; this is not an implemented drive loop. */
     private fun sendZeroSetpoint(arm: Boolean, deadman: Boolean) {
         val command = ControlCommand(
+            // Keep transmitted identifiers within uint16 while the local counter increments.
             sequence = sequence++ and 0xFFFF,
             forwardVelocityMps = 0f,
             yawRateRadS = 0f,
@@ -87,6 +94,7 @@ class MainActivity : Activity() {
         }
     }
 
+    // Release a future connection on teardown; firmware lease expiry must work independently.
     override fun onDestroy() {
         connection.disconnect()
         super.onDestroy()

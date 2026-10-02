@@ -5,16 +5,19 @@
 
 namespace robot {
 
+// Raw 14-bit angle and the diagnostic register accepted during the same read sequence.
 struct EncoderReading {
     std::uint16_t angle_ticks{0};
     std::uint16_t diagnostic{0};
 };
 
+// One AS5048A with no OTP writes; checks the SPI pipeline, parity and magnet health.
 class As5048a {
 public:
     explicit As5048a(EncoderFrameIo& io) : io_(io) {}
     esp_err_t initialize();
     esp_err_t read(EncoderReading* reading);
+    // Construct a read frame with address, read bit and even parity across all 16 bits.
     static std::uint16_t readCommand(std::uint16_t address);
     static bool evenParity(std::uint16_t frame);
 
@@ -25,6 +28,7 @@ private:
     bool initialized_{false};
 };
 
+// Software sign/zero correction and explicit assumptions for velocity unwrapping.
 struct WheelEncoderConfig {
     int left_direction{1};
     int right_direction{1};
@@ -35,6 +39,8 @@ struct WheelEncoderConfig {
     std::int64_t max_sample_gap_us{20000};
 };
 
+// Pairs two absolute-angle sensors and estimates speed from timestamped deltas.
+// Any pair fault discards history; the next good sample cannot claim a valid speed.
 class As5048aEncoders final : public Encoders {
 public:
     As5048aEncoders(As5048a& left, As5048a& right, SensorClock& clock,

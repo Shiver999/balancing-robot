@@ -5,6 +5,8 @@
 
 namespace robot {
 
+// Single-owner sensor contract: initialize first, then read into a non-null output.
+// Implementations clear failed outputs; raw validity does not imply estimated attitude.
 class Imu {
 public:
     virtual ~Imu() = default;
@@ -12,6 +14,7 @@ public:
     virtual esp_err_t read(ImuSample* sample) = 0;
 };
 
+// Reads a coherent software pair; callers must inspect velocity_valid independently.
 class Encoders {
 public:
     virtual ~Encoders() = default;
@@ -19,6 +22,8 @@ public:
     virtual esp_err_t read(WheelMeasurement* measurement) = 0;
 };
 
+// Hardware boundary for actuation. disable() must be safe before initialization
+// in a real adapter; healthy() alone never grants permission to enable outputs.
 class MotorDriver {
 public:
     virtual ~MotorDriver() = default;

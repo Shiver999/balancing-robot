@@ -5,13 +5,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+// Always-on assertion used by isolated CTest suites; no hardware or ESP-IDF is required.
 #define CHECK(x) do { if (!(x)) { std::fprintf(stderr, "line %d: %s\n", __LINE__, #x); std::exit(1); } } while (0)
 using namespace robot;
+// Deterministic local time: fixtures advance it to exercise freshness and timing boundaries.
 struct Clock : SensorClock {
     std::int64_t time = 1000;
     std::int64_t nowUs() const override { return time; }
     void delayMs(std::uint32_t ms) override { time += ms * 1000; }
 };
+// MPU register bank emulates accepted writes, bursts and configurable transport/readback faults.
 struct Registers : ImuRegisterIo {
     std::array<std::uint8_t, 128> regs{};
     esp_err_t error = ESP_OK;
@@ -28,11 +31,14 @@ struct Registers : ImuRegisterIo {
         if (write_fail) return ESP_FAIL;
         regs[address] = value; return ESP_OK;
     }
+    // Place a signed axis word into its actual big-endian burst position.
     void raw(int index, int value) {
         const auto bits = static_cast<std::uint16_t>(value);
         regs[0x3B + index * 2] = bits >> 8; regs[0x3C + index * 2] = bits & 255;
     }
 };
+// Model the AS5048A one-frame pipeline, including parity, flags and diagnostic failures.
+// Optional transfer time advances the shared fake clock to exercise pair-duration limits.
 struct Frames : EncoderFrameIo {
     std::uint16_t pending = 0, angle = 0, diagnostic = 0x100;
     bool corrupt = false, flagged = false;
@@ -57,6 +63,7 @@ struct Frames : EncoderFrameIo {
         return ESP_OK;
     }
 };
+// Validate device/profile acceptance, signed SI conversion and invalid-output behavior.
 void imuTests() {
     Clock clock; Registers io; Mpu6xxx imu(io, clock); ImuSample sample;
     CHECK(imu.read(&sample) == ESP_ERR_INVALID_STATE);
@@ -87,6 +94,7 @@ void imuTests() {
     CHECK(m9250.initialize() == ESP_OK);
     newer.regs.fill(255); CHECK(m9250.read(&sample) == ESP_ERR_INVALID_RESPONSE);
 }
+// Validate delayed responses, error clearing and magnet/offset diagnostic gates.
 void encoderTests() {
     Frames io; As5048a encoder(io); EncoderReading reading;
     CHECK(encoder.read(&reading) == ESP_ERR_INVALID_STATE);
@@ -102,6 +110,7 @@ void encoderTests() {
     io.diagnostic = 0x100; io.error = ESP_FAIL; CHECK(encoder.read(&reading) == ESP_FAIL);
     CHECK(encoder.read(nullptr) == ESP_ERR_INVALID_ARG);
 }
+// Exercise wraparound, software sign/zero, history loss, speed bounds and slow reads.
 void wheelTests() {
     Clock clock; Frames lio, rio; As5048a left(lio), right(rio);
     WheelEncoderConfig config; config.right_direction = -1; config.right_zero_ticks = 100;
@@ -130,6 +139,7 @@ void wheelTests() {
     config.left_direction = 0; As5048aEncoders invalid(left, right, clock, config);
     CHECK(invalid.initialize() == ESP_ERR_INVALID_ARG);
 }
+// Run one suite per CTest invocation; unknown names fail rather than silently skipping.
 int main(int argc, char** argv) {
     CHECK(argc == 2);
     if (std::strcmp(argv[1], "imu") == 0) imuTests();

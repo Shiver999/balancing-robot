@@ -18,6 +18,8 @@ object RobotProtocol {
     val CONTROL_UUID: UUID = UUID.fromString("7f510002-1b15-4f6c-9a2a-5b2e6b0a0100")
     val STATUS_UUID: UUID = UUID.fromString("7f510003-1b15-4f6c-9a2a-5b2e6b0a0100")
 
+    /** Validate stateless admission policy, then serialize exactly 15 little-endian bytes.
+     * Replay ordering and receive-time lease enforcement remain firmware responsibilities. */
     fun encode(command: ControlCommand, limits: CommandLimits = CommandLimits()): ByteArray {
         require(command.sequence in 0..0xFFFF) { "sequence must fit uint16" }
         require(command.forwardVelocityMps.isFinite())
@@ -33,8 +35,11 @@ object RobotProtocol {
             "motion requires arm and dead-man flags"
         }
 
+        // Pack only the two defined flags; firmware rejects unknown bits.
         val flags = (if (command.armRequested) FLAG_ARM_REQUEST else 0) or
             (if (command.deadmanActive) FLAG_DEADMAN_ACTIVE else 0)
+        // Header(2), sequence(2), SI floats(8), flags(1), lease milliseconds(2).
+        // Signed JVM shorts preserve the same 16-bit wire pattern as firmware uint16.
         return ByteBuffer.allocate(CONTROL_PACKET_SIZE)
             .order(ByteOrder.LITTLE_ENDIAN)
             .put(VERSION)
@@ -56,6 +61,7 @@ data class CommandLimits(
     val maxLeaseMs: Int = RobotProtocol.MAX_LEASE_MS,
 )
 
+/** Immutable requested motion in SI units. Flags are intent, not proof that motors are armed. */
 data class ControlCommand(
     val sequence: Int,
     val forwardVelocityMps: Float,

@@ -10,11 +10,13 @@ constexpr std::uint16_t kDiagnostics = 0x3FFD;
 constexpr std::uint16_t kAngle = 0x3FFF;
 constexpr double kRadiansPerTick = 6.2831853071795864769 / 16384.0;
 
+// Apply software zero/sign then normalize negative modulo into one revolution.
 std::uint16_t corrected(std::uint16_t ticks, std::uint16_t zero, int direction) {
     const int value = (direction * (static_cast<int>(ticks) - zero)) % 16384;
     return static_cast<std::uint16_t>(value < 0 ? value + 16384 : value);
 }
 
+// Choose the shortest signed displacement across the 14-bit angle boundary.
 int delta(std::uint16_t current, std::uint16_t previous) {
     int value = static_cast<int>(current) - previous;
     if (value > 8192) value -= 16384;
@@ -23,6 +25,7 @@ int delta(std::uint16_t current, std::uint16_t previous) {
 }
 }  // namespace
 
+// Toggle once per set bit; command/response parity covers data, flags and parity bit.
 bool As5048a::evenParity(std::uint16_t frame) {
     bool odd = false;
     while (frame != 0) {
@@ -62,6 +65,7 @@ esp_err_t As5048a::readRegister(std::uint16_t address, std::uint16_t* value) {
     return ESP_OK;
 }
 
+// Clear prior bus errors and require one healthy diagnostic/angle read before use.
 esp_err_t As5048a::initialize() {
     initialized_ = false;
     esp_err_t result = clearErrors();
@@ -90,6 +94,7 @@ esp_err_t As5048a::read(EncoderReading* reading) {
     return ESP_OK;
 }
 
+// Forget speed and multi-turn continuity whenever timestamps or sensor data fail.
 void As5048aEncoders::resetHistory() {
     has_previous_ = false;
     previous_time_us_ = 0;
@@ -119,6 +124,8 @@ esp_err_t As5048aEncoders::read(WheelMeasurement* measurement) {
     *measurement = WheelMeasurement{};
     if (!initialized_) return ESP_ERR_INVALID_STATE;
     EncoderReading left, right;
+    // Both sensors must be healthy; reads are sequential, not simultaneous.
+    // Reject excessive completed pair duration; transport waits have no hard deadline.
     const auto started = clock_.nowUs();
     const esp_err_t left_result = left_.read(&left);
     const esp_err_t right_result = right_.read(&right);
@@ -135,6 +142,8 @@ esp_err_t As5048aEncoders::read(WheelMeasurement* measurement) {
     const auto current_left = corrected(left.angle_ticks, config_.left_zero_ticks, config_.left_direction);
     const auto current_right = corrected(right.angle_ticks, config_.right_zero_ticks, config_.right_direction);
     const double dt = has_previous_ ? (timestamp - previous_time_us_) / 1000000.0 : 0;
+    // A unique shortest-angle interpretation needs less than half a turn between samples.
+    // Faster/multiple turns can alias, so these assumptions require physical validation.
     bool velocity_valid = has_previous_ && timestamp - previous_time_us_ <= config_.max_sample_gap_us &&
                           config_.max_speed_rad_s * dt < 3.14159265358979323846;
     float left_speed = 0, right_speed = 0;

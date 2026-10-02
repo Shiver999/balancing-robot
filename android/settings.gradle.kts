@@ -1,3 +1,4 @@
+// Resolve build plugins centrally from their official distribution repositories.
 pluginManagement {
     repositories {
         google()
@@ -6,6 +7,7 @@ pluginManagement {
     }
 }
 
+// Keep library resolution consistent; subprojects may not silently add repositories.
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -15,4 +17,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "BalancingRobotAndroid"
+// Single application module; there are no independent firmware/transport Gradle modules.
 include(":app")

@@ -28,6 +28,7 @@ Imu& defaultImu() {
     return imu;
 }
 
+// Keep unavailable defaults separate from the explicitly wired real sensor bench.
 Encoders& defaultEncoders() {
     static EncoderStub encoders;
     return encoders;

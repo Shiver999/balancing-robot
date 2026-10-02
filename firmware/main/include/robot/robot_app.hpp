@@ -6,6 +6,8 @@
 
 namespace robot {
 
+// Startup coordinator owns safety state but borrows the motor adapter for its lifetime.
+// It establishes the disabled output path; sensor bench composition lives in app_main.
 class RobotApp {
 public:
     explicit RobotApp(MotorDriver& motor_driver);

@@ -4,6 +4,7 @@
 
 namespace robot {
 
+// Lifecycle vocabulary for future control integration; current firmware never balances.
 enum class RobotState : std::uint8_t {
     kBoot,
     kDisarmed,
@@ -13,6 +14,7 @@ enum class RobotState : std::uint8_t {
     kFault,
 };
 
+// Latched failure categories exposed to safety logic and future telemetry.
 enum class FaultCode : std::uint8_t {
     kNone,
     kSensorUnavailable,
@@ -22,12 +24,14 @@ enum class FaultCode : std::uint8_t {
     kInternal,
 };
 
+// Cartesian components in the sensor frame unless a consumer explicitly transforms them.
 struct Vector3 {
     float x{0.0F};
     float y{0.0F};
     float z{0.0F};
 };
 
+// Timestamped IMU snapshot. Check attitude_valid separately before using pitch fields.
 struct ImuSample {
     std::int64_t timestamp_us{0};
     float pitch_rad{0.0F};
@@ -41,6 +45,8 @@ struct ImuSample {
     bool attitude_valid{false};
 };
 
+// A valid pair has two healthy angles; velocity_valid additionally requires usable history.
+// Unwrapped angles restart after an outage and are not persistent odometry.
 struct WheelMeasurement {
     std::int64_t timestamp_us{0};
     float left_angle_rad{0.0F};
@@ -57,6 +63,8 @@ struct WheelMeasurement {
     float right_unwrapped_angle_rad{0.0F};
 };
 
+// Admitted local command with SI setpoints and a lease measured from receive time.
+// Arm/dead-man flags express intent; they do not authorize motor output.
 struct MotionRequest {
     std::uint16_t sequence{0};
     float forward_velocity_m_s{0.0F};
@@ -67,12 +75,15 @@ struct MotionRequest {
     bool deadman_active{false};
 };
 
+// Actuator request; output units remain unspecified until a real motor adapter exists.
+// The default value disables actuation and requests zero output.
 struct MotorCommand {
     float left_output{0.0F};
     float right_output{0.0F};
     bool enable{false};
 };
 
+// Compact future telemetry snapshot; no publisher currently populates/transmits it.
 struct RobotStatus {
     RobotState state{RobotState::kBoot};
     FaultCode fault{FaultCode::kNone};

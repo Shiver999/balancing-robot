@@ -6,11 +6,13 @@
 namespace robot::protocol {
 namespace {
 
+// Assemble bytes explicitly to avoid alignment and host-endianness assumptions.
 std::uint16_t readU16Le(const std::uint8_t* bytes) {
     return static_cast<std::uint16_t>(bytes[0]) |
            (static_cast<std::uint16_t>(bytes[1]) << 8U);
 }
 
+// Copy the assembled IEEE-754 bit pattern without violating C++ aliasing rules.
 float readF32Le(const std::uint8_t* bytes) {
     const std::uint32_t bits = static_cast<std::uint32_t>(bytes[0]) |
                                (static_cast<std::uint32_t>(bytes[1]) << 8U) |
@@ -38,6 +40,7 @@ esp_err_t decodeControlPacket(const std::uint8_t* bytes, std::size_t length,
         return ESP_ERR_INVALID_ARG;
     }
 
+    // Validate all fields before touching the caller output: failed decodes are atomic.
     const float forward = readF32Le(&bytes[4]);
     const float yaw = readF32Le(&bytes[8]);
     const std::uint16_t lease_ms = readU16Le(&bytes[13]);
@@ -86,11 +89,13 @@ esp_err_t CommandMailbox::accept(const std::uint8_t* bytes, std::size_t length,
             return ESP_ERR_INVALID_STATE;
         }
     }
+    // Commit only after validation so malformed/replayed packets cannot extend control.
     accepted_ = candidate;
     has_command_ = true;
     return ESP_OK;
 }
 
+// Subtract receive time rather than adding a deadline, avoiding timestamp overflow.
 MotionRequest CommandMailbox::current(std::int64_t now_us) const {
     if (!has_command_ || now_us < accepted_.received_at_us ||
         now_us - accepted_.received_at_us >=

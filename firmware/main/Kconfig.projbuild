@@ -1,3 +1,4 @@
+# Opt-in acquisition only; these settings do not enable motor drivers or balancing.
 menu "Robot sensor bench"
 
 config ROBOT_SENSOR_BENCH
@@ -10,6 +11,7 @@ config ROBOT_SENSOR_BENCH
 
 if ROBOT_SENSOR_BENCH
 
+# Pins are additionally checked at runtime for reserved functions and duplicate assignments.
 config ROBOT_SPI_SCK
     int "Sensor SPI SCK GPIO"
     range 0 48
@@ -34,6 +36,7 @@ config ROBOT_RIGHT_ENCODER_CS
     int "Right AS5048A chip-select GPIO"
     range 0 48
     default 16
+# Encoder direction/zero are software transforms; no permanent sensor programming occurs.
 config ROBOT_LEFT_ENCODER_DIRECTION
     int "Left encoder sign (+1 or -1)"
     range -1 1

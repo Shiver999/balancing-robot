@@ -1,3 +1,5 @@
+# Select the ESP32-S3 toolchain and target peripherals.
 CONFIG_IDF_TARGET="esp32s3"
+# Drivers return esp_err_t instead of throwing; avoid exception/RTTI runtime overhead.
 CONFIG_COMPILER_CXX_EXCEPTIONS=n
 CONFIG_COMPILER_CXX_RTTI=n

@@ -11,6 +11,7 @@ public:
     esp_err_t read(ImuSample* sample) override;
 };
 
+// Static fallback lifetime; enabling the real bench does not replace this factory.
 Imu& defaultImu();
 
 }  // namespace robot

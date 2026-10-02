@@ -1,1 +1,2 @@
+# Supplemental defaults explicitly enable the serial-only sensor bench.
 CONFIG_ROBOT_SENSOR_BENCH=y

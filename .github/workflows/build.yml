@@ -5,10 +5,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Builds need repository read access only; they do not publish or flash hardware.
 permissions:
   contents: read
 
 jobs:
+  # Host fixtures check real protocol, safety and sensor algorithms with sanitizers.
   firmware-host:
     runs-on: ubuntu-latest
     steps:
@@ -20,6 +22,7 @@ jobs:
       - name: Test protocol, leases, replay protection, startup and sensors
         run: ctest --test-dir firmware/test/host/build --output-on-failure
 
+  # Compile the default ESP32-S3 image with acquisition disabled.
   firmware-target:
     runs-on: ubuntu-latest
     steps:
@@ -30,6 +33,7 @@ jobs:
           target: esp32s3
           path: firmware
 
+  # Also compile opt-in acquisition so target-only SPI and logging code stays covered.
   firmware-sensor-bench:
     runs-on: ubuntu-latest
     steps:
@@ -41,6 +45,7 @@ jobs:
           path: firmware
           command: idf.py -B build-sensor-bench -D SDKCONFIG=sdkconfig.sensor-bench -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.sensor-bench.defaults" build
 
+  # Build the debug APK and run JVM protocol tests against the pinned SDK/JDK.
   android:
     runs-on: ubuntu-latest
     steps:

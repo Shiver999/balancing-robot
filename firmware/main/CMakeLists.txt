@@ -1,3 +1,4 @@
+# Compile real sensor adapters in every build; Kconfig gates bench execution, not source coverage.
 idf_component_register(
     SRCS
         "app_main.cpp"
@@ -15,4 +16,5 @@ idf_component_register(
     REQUIRES freertos log esp_timer esp_driver_spi esp_driver_gpio
 )
 
+# Shared headers and driver code use the C++17 language contract.
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_17)
