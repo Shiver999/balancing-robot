@@ -1,8 +1,12 @@
 # ESP-IDF outputs and local configuration
 firmware/build/
+firmware/build-sensor-bench/
+firmware/sdkconfig.sensor-bench
+firmware/sdkconfig.sensor-bench.old
 firmware/sdkconfig
 firmware/sdkconfig.old
 firmware/managed_components/
+firmware/test/host/build/
 
 # Android / Gradle outputs and machine-local SDK path
 android/.gradle/

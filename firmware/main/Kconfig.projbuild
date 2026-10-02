@@ -1,0 +1,55 @@
+menu "Robot sensor bench"
+
+config ROBOT_SENSOR_BENCH
+    bool "Enable real sensors in motor-disabled bench mode"
+    default n
+    help
+        Poll real MPU-6500/9250 and AS5048A sensors and log to serial. Confirm
+        3.3 V wiring and the pin map first. This does not enable motor output,
+        balancing, BLE, magnetometer or calibrated attitude estimation.
+
+if ROBOT_SENSOR_BENCH
+
+config ROBOT_SPI_SCK
+    int "Sensor SPI SCK GPIO"
+    range 0 48
+    default 7
+config ROBOT_SPI_MISO
+    int "Sensor SPI MISO GPIO"
+    range 0 48
+    default 6
+config ROBOT_SPI_MOSI
+    int "Sensor SPI MOSI GPIO"
+    range 0 48
+    default 5
+config ROBOT_IMU_CS
+    int "IMU chip-select GPIO"
+    range 0 48
+    default 4
+config ROBOT_LEFT_ENCODER_CS
+    int "Left AS5048A chip-select GPIO"
+    range 0 48
+    default 15
+config ROBOT_RIGHT_ENCODER_CS
+    int "Right AS5048A chip-select GPIO"
+    range 0 48
+    default 16
+config ROBOT_LEFT_ENCODER_DIRECTION
+    int "Left encoder sign (+1 or -1)"
+    range -1 1
+    default 1
+config ROBOT_RIGHT_ENCODER_DIRECTION
+    int "Right encoder sign (+1 or -1)"
+    range -1 1
+    default 1
+config ROBOT_LEFT_ENCODER_ZERO
+    int "Left encoder software zero (raw ticks)"
+    range 0 16383
+    default 0
+config ROBOT_RIGHT_ENCODER_ZERO
+    int "Right encoder software zero (raw ticks)"
+    range 0 16383
+    default 0
+
+endif
+endmenu

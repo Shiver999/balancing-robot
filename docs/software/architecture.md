@@ -112,7 +112,7 @@ Keep Android app concerns separated:
 
 Use a versioned protocol over GATT characteristics (or framed messages over a write/notify pair). The scaffold currently defines a 15-byte little-endian control packet: `version:u8`, `type:u8`, `sequence:u16`, `forward_velocity_m_s:f32`, `yaw_rate_rad_s:f32`, `flags:u8` (arm/deadman), and `lease_ms:u16`. Android and firmware encoders/decoders must stay byte-for-byte compatible. The GATT UUIDs in the Android scaffold are placeholders until the ESP32 service is implemented.
 
-- **Control write:** `version`, `sequence`, `forward_velocity_mps`, `yaw_rate_rad_s`, `arm_request`, and command lease/expiry. Clamp against firmware limits; reject malformed, stale, unsupported-version, and out-of-order commands.
+- **Control write:** `version`, `sequence`, `forward_velocity_mps`, `yaw_rate_rad_s`, `arm_request`, and command lease/expiry. Reject requests outside configured firmware limits, as well as malformed, stale, unsupported-version, and out-of-order commands.
 - **Heartbeat/dead-man:** control commands renew a short lease while the user deliberately holds the control. On lease expiration, clear motion and enter `REMOTE_LOST`; never hold the last nonzero setpoint indefinitely.
 - **Status notify:** `version`, `sequence`, robot state, pitch/rate, left/right wheel speed, measured battery voltage (only if hardware provides it), sensor/driver health, active limits, and fault code.
 - **Configuration:** separate read/write path. Writes accepted only in `DISARMED`, range checked, and acknowledged with the applied value. Critical gains should not be exposed as casual live controls.
@@ -161,6 +161,36 @@ docs/
 
 The layout is a starting convention, not a mandate to create a separate package for every class. Keep modules small, interfaces stable, and add folders when code exists. The scaffold uses ESP-IDF/FreeRTOS and native Kotlin/Gradle. BLE is represented by an interface/stub; no GATT service or radio control is active yet. Validate compatibility with the chosen motor-control library and board before implementing the hardware adapter.
 
+### Implemented command admission and unavailable sensors
+
+`decodeControlPacket` validates framing, flags, finite numbers, nonnegative
+receive timestamps, and a 1–200 ms lease. Nonzero motion requires both arm and
+dead-man flags. `CommandMailbox` additionally enforces configured velocity/yaw
+limits and sequence ordering. Motion limits default to zero; values used in
+unit tests are synthetic test limits, not approved hardware limits. Android's
+encoder applies the same stateless policy and also defaults to zero motion.
+
+Duplicate, older, and half-range-ambiguous uint16 sequences are rejected;
+65535-to-0 wraparound is accepted. Invalid packets never renew the accepted
+command's lease. At the exact expiry boundary, `current(now_us)` returns an
+empty request (zero motion, no arm/dead-man flags). Receive time must be a
+monotonic local timestamp. Expiry does not reset sequence history.
+
+The mailbox is not connected to BLE or a control task yet. When implementing
+those, enqueue packets to one owning task, apply admission there, and consume
+`current(now_us)` on every control tick. Never feed the raw decoder output to
+the controller. Call `resetSession()` only for a newly authenticated session
+while disarmed; clearing history on expiry would permit replay. Arming and
+disarming remain the safety manager's responsibility, and a live command does
+not authorize motor output. The 200 ms cap is a scaffold policy requiring
+future BLE timing/fault tests, not a measured hardware safety setting.
+
+`defaultImu()` and `defaultEncoders()` are unavailable hardware adapters:
+initialization/reads return `ESP_ERR_NOT_SUPPORTED`, and reads clear output
+validity and timestamps. They never invent fresh valid samples. Any synthetic
+samples belong in host-only fixtures; they must not be selected by target
+firmware. Motor output and hardware arming remain disabled.
+
 ## Test strategy and implementation order
 
 1. Record actual board revisions, IMU/encoder IC markings, driver interfaces/current-sense capability, motor pole pairs/current limits, wheel dimensions, and safe-disable pin behavior.
@@ -171,3 +201,12 @@ The layout is a starting convention, not a mandate to create a separate package 
 6. Add a simulation/fake-driver implementation so control and safety can be tested without energized motors; proceed to closed-loop tests only when the driver/motor compatibility and safety checks pass.
 
 Do not finalize loop rate, PID gains, motor current limits, BLE lease duration, or arm-angle thresholds from the current listing data alone; measure and validate against the actual hardware.
+
+### Real sensor acquisition implemented
+
+The opt-in [sensor bench](sensor-bringup.md) composes MPU-6500/9250 six-axis SPI
+acquisition and two AS5048A SPI angle drivers on an ESP-IDF SPI2 adapter. Raw IMU
+`valid` does not imply `attitude_valid`; pitch remains unavailable. Wheel angle
+`valid` does not imply `velocity_valid`, especially after startup or a gap/fault.
+The bench has a single owning task and leaves motor actuation disabled. It is
+not a calibrated estimator, deadline-verified control task, or BLE publisher.

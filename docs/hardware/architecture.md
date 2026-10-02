@@ -57,7 +57,7 @@ The pack is assumed to be 4S1P: four matched 2500 mAh 18650 Li-ion cells in seri
 | Connection | Proposed topology | Items to verify before wiring |
 |---|---|---|
 | IMU to ESP32-S3 | One GY-6500/GY-9250 module; SPI or I²C | User confirms one module with SPI/I²C connection. Select one interface and verify the module's mode-selection pins, actual sensor IC, breakout schematic, supply/logic levels, pull-ups or chip-select wiring, and interrupt availability. Keep the IMU rigidly mounted near the chassis center and axle plane. |
-| Two AS5048A encoders to ESP32-S3 | Power each module from 3.3 V for direct logic compatibility; shared SPI clock/data with one chip-select per encoder (planned); PWM outputs are an alternative | User confirms the modules can run at 3.3 V or 5 V and the A version. AS5048A supports SPI and PWM/ABI, not I²C. Using the 3.3 V rail avoids 5 V signal-level concerns; confirm module pinout, SPI timing, MISO behavior when deselected, PWM configuration if used, and magnet alignment/air gap. |
+| Two AS5048A encoders to ESP32-S3 | Power each module from 3.3 V for direct logic compatibility; shared SPI clock/data with one chip-select per encoder (planned); PWM outputs are an alternative | User confirms the modules can run at 3.3 V or 5 V and the A version. AS5048A supports SPI and PWM, not I²C. Using the 3.3 V rail avoids 5 V signal-level concerns; confirm module pinout, SPI timing, MISO behavior when deselected, PWM configuration if used, and magnet alignment/air gap. |
 | ESP32-S3 to each driver | Driver-board-supported PWM inputs plus enable and fault signals where exposed | Confirm whether the exact board accepts 3-PWM or 6-PWM, input voltage thresholds, PWM frequency/dead-time requirements, polarity, fault behavior, and MCU pin/timer availability. Do not assign pins until the exact ESP32-S3 board is selected. |
 | Driver to motor | Three phase outputs per BLDC motor | Confirm motor phase current and driver board continuous/peak ratings, cooling, and phase wiring. Identify motor pole pairs for FOC configuration. |
 | Emergency stop to drivers | Hardware path that forces both driver boards disabled | Follow the board's specified enable/sleep polarity and provide a safe hardware default during reset, boot, and MCU power loss. The software command alone is not an emergency stop. |
@@ -65,6 +65,39 @@ The pack is assumed to be 4S1P: four matched 2500 mAh 18650 Li-ion cells in seri
 | Dedicated balance charger to pack | Compatible 4S Li-ion charger connected to the pack's balance port | Use for balancing charge; disconnect robot load. Do not parallel charge sources unless an engineered power path explicitly allows it. |
 
 Keep the IMU and encoder signal wiring short and away from switching nodes and motor phase leads. If an SPI bus is shared, confirm that every device tolerates the same bus voltage and releases MISO when not selected; otherwise use separate buses or suitable isolation.
+
+### Corrected provisional ESP32-S3 pin plan
+
+This plan supersedes the earlier pin map on `agents/getting-started-with-coding`.
+It is documentation only; firmware does not configure these pins. Confirm the
+actual DevKitC-1 revision and all breakout schematics before wiring. Driver
+assignments assume a verified 3-PWM interface; a different interface requires a
+new allocation.
+
+| Signal | Proposed GPIO | Notes |
+|---|---|---|
+| Shared sensor SPI SCK / MISO / MOSI | 7 / 6 / 5 | IMU and both encoders; configure SPI mode/speed per device and verify MISO release |
+| IMU CS / optional interrupt | 4 / 17 | Verify mode-selection and interrupt polarity |
+| Left / right encoder CS | 15 / 16 | Separate chip selects on the shared SPI bus |
+| Left PWM A / B / C | 8 / 9 / 10 | No output enabled by current firmware |
+| Left enable / fault | 11 / 12 | Verify polarity and hardware disable defaults |
+| Right PWM A / B / C | 13 / 14 / 18 | No output enabled by current firmware |
+| Right enable / fault | 21 / 40 | Verify polarity and hardware disable defaults; reserve GPIO40 from JTAG |
+| E-stop status input | 39 | Monitoring only; the physical E-stop must independently disable both drivers |
+| External status LED | 2 | Requires an external LED and resistor; not the onboard RGB LED |
+| Battery sense | 1 (ADC1_CH0) | Divider/filter/protection and calibration TBD; never connect the pack directly |
+| Debug UART TX / RX | 43 / 44 | Reserved for debug |
+
+The ESP32-S3 has GPIO0–21 and GPIO26–48; **GPIO22–25 do not exist**. Reserve
+GPIO19/20 for native USB, GPIO26–37 for flash/PSRAM, and GPIO0/3/45/46 for
+strapping constraints. GPIO33 has no ADC function and is not a battery-sense
+candidate. Reserve both GPIO38 and GPIO48 for board LED/revision differences;
+this plan uses neither. GPIO39/40 are assigned to safety/fault monitoring, so
+external JTAG using those pins is unavailable with this allocation; use USB or
+UART debugging instead.
+
+Sources: [Espressif GPIO restrictions](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-reference/peripherals/gpio.html)
+and [DevKitC-1 board guide](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.0.html).
 
 ## Safety and bring-up sequence
 
@@ -87,3 +120,7 @@ Never leave the Li-ion pack charging unattended. Do not charge a swollen, damage
 - Whether the selected FOC mode needs added phase-current sensors and battery voltage/current measurement.
 
 At 319 KV, the ideal no-load speed estimate is $319\,\mathrm{rpm/V} \times 14.8\,\mathrm{V} \approx 4{,}715\,\mathrm{rpm}$ nominal and $319\,\mathrm{rpm/V} \times 16.8\,\mathrm{V} \approx 5{,}359\,\mathrm{rpm}$ at full charge. KV alone does not establish torque, stall current, loaded speed, driver suitability, or whether direct drive is appropriate.
+
+The motor-disabled sensor bench now uses the confirmed SPI wiring above, with
+per-device modes and 1 MHz clocks. GPIO configuration is opt-in; see
+[bring-up instructions](../software/sensor-bringup.md).

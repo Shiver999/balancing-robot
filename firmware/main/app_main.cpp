@@ -3,6 +3,8 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "sdkconfig.h"
+#include "robot/drivers/esp_sensor_spi.hpp"
 
 namespace robot {
 MotorDriver& safeMotorDriver();
@@ -14,6 +16,10 @@ extern "C" void app_main() {
     if (result != ESP_OK) {
         ESP_LOGW("app_main", "Safe scaffold startup returned %s", esp_err_to_name(result));
     }
+
+#if CONFIG_ROBOT_SENSOR_BENCH
+    robot::runSensorBench();
+#endif
 
     // Idle safely. Do not attach motors expecting the scaffold to balance.
     while (true) {

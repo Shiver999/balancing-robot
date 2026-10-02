@@ -1,9 +1,14 @@
 package org.example.balancingrobot.protocol
 
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class RobotProtocolTest {
+    private val limits = CommandLimits(maxForwardVelocityMps = 2f, maxYawRateRadS = 1f)
+    private val moving = ControlCommand(1, 1.5f, -0.5f, true, true, 200)
+
     @Test
     fun controlPacketMatchesFirmwareLittleEndianLayout() {
         val packet = RobotProtocol.encode(
@@ -15,6 +20,7 @@ class RobotProtocolTest {
                 deadmanActive = true,
                 leaseMs = 200,
             ),
+            CommandLimits(maxForwardVelocityMps = 2f, maxYawRateRadS = 1f),
         )
 
         assertArrayEquals(
@@ -26,5 +32,72 @@ class RobotProtocolTest {
             ),
             packet,
         )
+    }
+
+    @Test
+    fun defaultsPermitOnlyZeroMotion() {
+        assertThrows(IllegalArgumentException::class.java) { RobotProtocol.encode(moving) }
+        val stopped = moving.copy(forwardVelocityMps = 0f, yawRateRadS = 0f,
+            armRequested = false, deadmanActive = false)
+        assertEquals(15, RobotProtocol.encode(stopped).size)
+    }
+
+    @Test
+    fun rejectsNonfiniteAndOutOfRangeMotion() {
+        for (value in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, 2.01f, -2.01f)) {
+            assertThrows(IllegalArgumentException::class.java) {
+                RobotProtocol.encode(moving.copy(forwardVelocityMps = value), limits)
+            }
+        }
+        for (value in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, 1.01f, -1.01f)) {
+            assertThrows(IllegalArgumentException::class.java) {
+                RobotProtocol.encode(moving.copy(yawRateRadS = value), limits)
+            }
+        }
+    }
+
+    @Test
+    fun motionRequiresArmAndDeadman() {
+        for (command in listOf(moving.copy(armRequested = false), moving.copy(deadmanActive = false))) {
+            assertThrows(IllegalArgumentException::class.java) { RobotProtocol.encode(command, limits) }
+        }
+    }
+
+    @Test
+    fun rejectsBadLeasesAndSequences() {
+        for (lease in listOf(0, -1, 201, 65535)) {
+            assertThrows(IllegalArgumentException::class.java) {
+                RobotProtocol.encode(moving.copy(leaseMs = lease), limits)
+            }
+        }
+        for (sequence in listOf(-1, 65536)) {
+            assertThrows(IllegalArgumentException::class.java) {
+                RobotProtocol.encode(moving.copy(sequence = sequence), limits)
+            }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            RobotProtocol.encode(moving, limits.copy(maxLeaseMs = 100))
+        }
+    }
+
+    @Test
+    fun rejectsInvalidLimitConfiguration() {
+        for (invalid in listOf(limits.copy(maxForwardVelocityMps = -1f),
+            limits.copy(maxForwardVelocityMps = Float.NaN),
+            limits.copy(maxYawRateRadS = -1f),
+            limits.copy(maxYawRateRadS = Float.POSITIVE_INFINITY),
+            limits.copy(maxLeaseMs = 0), limits.copy(maxLeaseMs = 201))) {
+            assertThrows(IllegalArgumentException::class.java) { RobotProtocol.encode(moving, invalid) }
+        }
+    }
+
+    @Test
+    fun acceptsInclusiveMotionAndWireBoundaries() {
+        for (sequence in listOf(0, 65535)) {
+            for (lease in listOf(1, 200)) {
+                assertEquals(15, RobotProtocol.encode(moving.copy(sequence = sequence,
+                    forwardVelocityMps = -2f, yawRateRadS = 1f, leaseMs = lease), limits).size)
+            }
+        }
     }
 }

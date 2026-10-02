@@ -22,11 +22,23 @@ enum class FaultCode : std::uint8_t {
     kInternal,
 };
 
+struct Vector3 {
+    float x{0.0F};
+    float y{0.0F};
+    float z{0.0F};
+};
+
 struct ImuSample {
     std::int64_t timestamp_us{0};
     float pitch_rad{0.0F};
     float pitch_rate_rad_s{0.0F};
     bool valid{false};
+    // Raw sensor-frame SI measurements. valid does not imply calibrated attitude.
+    Vector3 acceleration_m_s2{};
+    Vector3 angular_velocity_rad_s{};
+    std::int16_t temperature_raw{0};
+    std::uint8_t device_id{0};
+    bool attitude_valid{false};
 };
 
 struct WheelMeasurement {
@@ -36,6 +48,13 @@ struct WheelMeasurement {
     float left_speed_rad_s{0.0F};
     float right_speed_rad_s{0.0F};
     bool valid{false};
+    bool velocity_valid{false};
+    bool left_valid{false};
+    bool right_valid{false};
+    std::uint16_t left_raw_angle{0};
+    std::uint16_t right_raw_angle{0};
+    float left_unwrapped_angle_rad{0.0F};
+    float right_unwrapped_angle_rad{0.0F};
 };
 
 struct MotionRequest {
