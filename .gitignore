@@ -1,6 +1,9 @@
 # ESP-IDF outputs and local configuration
 firmware/build/
 firmware/build-sensor-bench/
+firmware/build-ble-bench/
+firmware/sdkconfig.ble-bench
+firmware/sdkconfig.ble-bench.old
 firmware/sdkconfig.sensor-bench
 firmware/sdkconfig.sensor-bench.old
 firmware/sdkconfig

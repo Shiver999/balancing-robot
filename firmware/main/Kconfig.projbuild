@@ -12,6 +12,14 @@ config ROBOT_SENSOR_BENCH
 if ROBOT_SENSOR_BENCH
 
 # Pins are additionally checked at runtime for reserved functions and duplicate assignments.
+config ROBOT_BLE_TELEMETRY
+    bool "Publish sensor bench over BLE (telemetry only)"
+    depends on BT_NIMBLE_ENABLED
+    default n
+    help
+        Advertise Balancing Robot and publish live sensor snapshots.
+        This service allows no command writes and does not enable motors.
+
 config ROBOT_SPI_SCK
     int "Sensor SPI SCK GPIO"
     range 0 48

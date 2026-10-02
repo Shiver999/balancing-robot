@@ -1,6 +1,10 @@
-# Android controller scaffold
+# Android sensor viewer
 
-Native Kotlin Android app scaffold for the robot's future BLE GATT controller. It currently contains a placeholder UI, a versioned control-packet encoder, and a nonfunctional BLE adapter. It cannot connect to or command the robot yet; control buttons remain disabled.
+Native Kotlin foreground BLE client for the motor-disabled ESP32 sensor bench.
+It scans by service UUID, supports device selection, subscribes to live status,
+and displays IMU and wheel measurements with unavailable/stale handling.
+The connected screen includes a centered circular analogue joystick preview,
+a Disconnect button and scrollable telemetry. Motor commands remain disabled. See [connection and installation instructions](../docs/software/ble-sensor-bench.md).
 
 ## Build prerequisites
 
@@ -33,9 +37,7 @@ firmware independently enforces its own limits.
 
 ## Next implementation steps
 
-1. Implement BLE permissions, scan/connect, pairing/bonding, GATT discovery, and encrypted characteristic access.
-2. Match the provisional UUIDs in `RobotProtocol.kt` with the ESP32 GATT service.
-3. Implement status parsing, connection/loss events and periodic lease renewal; connect firmware transport to the command mailbox described in the software architecture.
-4. Keep drive controls disabled unless connected, authenticated, and the robot reports a safe state. Never make the phone part of the balance loop.
-
-The 200 ms maximum lease and UUIDs are scaffold settings, not measured safety settings. Verify the firmware-side contract and test link loss before enabling UI controls.
+Verify discovery, notification streaming, background disconnect and reconnect on a
+real phone and ESP32. Before actuation, implement authenticated access, verified
+firmware safety/arming and command admission integration. The command encoder
+remains testable but is not sent by this telemetry-only client.

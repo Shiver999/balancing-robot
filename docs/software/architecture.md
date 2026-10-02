@@ -110,7 +110,7 @@ Keep Android app concerns separated:
 
 ### Initial command/status contract
 
-Use a versioned protocol over GATT characteristics (or framed messages over a write/notify pair). The scaffold currently defines a 15-byte little-endian control packet: `version:u8`, `type:u8`, `sequence:u16`, `forward_velocity_m_s:f32`, `yaw_rate_rad_s:f32`, `flags:u8` (arm/deadman), and `lease_ms:u16`. Android and firmware encoders/decoders must stay byte-for-byte compatible. The GATT UUIDs in the Android scaffold are placeholders until the ESP32 service is implemented.
+Use a versioned protocol over GATT characteristics (or framed messages over a write/notify pair). The scaffold currently defines a 15-byte little-endian control packet: `version:u8`, `type:u8`, `sequence:u16`, `forward_velocity_m_s:f32`, `yaw_rate_rad_s:f32`, `flags:u8` (arm/deadman), and `lease_ms:u16`. Android and firmware encoders/decoders must stay byte-for-byte compatible. Service/status UUIDs now match the read-only BLE bench; the control UUID remains reserved and has no writable firmware characteristic.
 
 - **Control write:** `version`, `sequence`, `forward_velocity_mps`, `yaw_rate_rad_s`, `arm_request`, and command lease/expiry. Reject requests outside configured firmware limits, as well as malformed, stale, unsupported-version, and out-of-order commands.
 - **Heartbeat/dead-man:** control commands renew a short lease while the user deliberately holds the control. On lease expiration, clear motion and enter `REMOTE_LOST`; never hold the last nonzero setpoint indefinitely.
@@ -159,7 +159,7 @@ docs/
   software/
 ```
 
-The layout is a starting convention, not a mandate to create a separate package for every class. Keep modules small, interfaces stable, and add folders when code exists. The scaffold uses ESP-IDF/FreeRTOS and native Kotlin/Gradle. BLE is represented by an interface/stub; no GATT service or radio control is active yet. Validate compatibility with the chosen motor-control library and board before implementing the hardware adapter.
+The layout is a starting convention, not a mandate to create a separate package for every class. Keep modules small, interfaces stable, and add folders when code exists. The scaffold uses ESP-IDF/FreeRTOS and native Kotlin/Gradle. The optional sensor bench now has a read/notify GATT status service and Android BLE client; radio control remains unavailable. Validate compatibility with the chosen motor-control library and board before implementing the hardware adapter.
 
 ### Implemented command admission and unavailable sensors
 
@@ -209,4 +209,11 @@ acquisition and two AS5048A SPI angle drivers on an ESP-IDF SPI2 adapter. Raw IM
 `valid` does not imply `attitude_valid`; pitch remains unavailable. Wheel angle
 `valid` does not imply `velocity_valid`, especially after startup or a gap/fault.
 The bench has a single owning task and leaves motor actuation disabled. It is
-not a calibrated estimator, deadline-verified control task, or BLE publisher.
+not a calibrated estimator, deadline-verified control task, or motor-control transport. The separate BLE option can publish raw snapshots.
+
+### Read-only BLE acquisition implemented
+
+See [BLE sensor bench](ble-sensor-bench.md) for the implemented foreground
+Android connection lifecycle and protected firmware telemetry snapshot. The
+service exposes no writable command characteristic. Control admission and motor
+arming remain separate future work; this public telemetry bench is not authenticated.

@@ -46,6 +46,17 @@ jobs:
           command: idf.py -B build-sensor-bench -D SDKCONFIG=sdkconfig.sensor-bench -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.sensor-bench.defaults" build
 
   # Build the debug APK and run JVM protocol tests against the pinned SDK/JDK.
+  firmware-ble-bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.4
+          target: esp32s3
+          path: firmware
+          command: idf.py -B build-ble-bench -D SDKCONFIG=sdkconfig.ble-bench -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.ble-bench.defaults" build
+
   android:
     runs-on: ubuntu-latest
     steps:
@@ -59,4 +70,4 @@ jobs:
         run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
       - name: Build APK and run protocol tests
         working-directory: android
-        run: ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest
+        run: ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug

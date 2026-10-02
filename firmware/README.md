@@ -5,13 +5,26 @@ ESP-IDF C++ scaffold for an ESP32-S3 target. It defines the modular data/interfa
 ## Build
 
 The repeatable target build uses **ESP-IDF v5.4** and the ESP32-S3 toolchain.
-After installing that version and exporting its environment, run:
+On this Mac, activate the installed environment in each new Terminal window:
+
+```sh
+source "/Users/rogercarrick/.espressif/esp-idf/export.sh"
+idf.py --version
+```
+
+Then, from the repository root, run:
 
 ```sh
 cd firmware
 idf.py set-target esp32s3
 idf.py build
 ```
+
+To locate the board on macOS, compare `ls /dev/cu.*` before and after plugging
+it in. Use the new port in `-p YOUR_PORT`. If it does not appear, try another
+computer USB port and a known-good data cable. Detailed activation, port
+discovery and flash commands are in the [serial bench guide](../docs/software/sensor-bringup.md)
+and [BLE bench guide](../docs/software/ble-sensor-bench.md).
 
 GitHub Actions runs this build without flashing any hardware. See
 `.github/workflows/build.yml` for target, host, and Android checks.
@@ -50,3 +63,10 @@ velocity validity and fault recovery. Physical hardware has not been tested.
 - Verify the real sensor bench on the physical modules. Replace the motor stub only after validating the hardware disable path. Default sensor factories remain unavailable; explicitly compose the verified real drivers into future control firmware.
 - Add watchdog/deadline handling, sensor freshness checks, state estimator, balance/motion controllers, bounded setpoints, and protocol/transport integration.
 - Keep the hardware motor-disable independent of firmware and phone connectivity. Test with motors disconnected first.
+
+## BLE sensor bench
+
+The separate `sdkconfig.ble-bench.defaults` adds a NimBLE read/notify status service
+to the sensor bench. See [Android connection and live sensors](../docs/software/ble-sensor-bench.md)
+for build/flash/install steps and the 60-byte shared contract. Ordinary builds
+keep BLE disabled. There is no command-write characteristic or motor enable.

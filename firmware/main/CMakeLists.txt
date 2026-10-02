@@ -6,6 +6,8 @@ idf_component_register(
         "safety/safety_manager.cpp"
         "control/balance_controller.cpp"
         "comms/protocol.cpp"
+        "comms/telemetry.cpp"
+        "comms/ble_telemetry.cpp"
         "drivers/safe_stubs.cpp"
         "drivers/sensor_stubs.cpp"
         "drivers/mpu6xxx.cpp"
@@ -13,7 +15,7 @@ idf_component_register(
         "drivers/esp_sensor_spi.cpp"
         "drivers/sensor_bench.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES freertos log esp_timer esp_driver_spi esp_driver_gpio
+    REQUIRES freertos log esp_timer esp_driver_spi esp_driver_gpio bt nvs_flash
 )
 
 # Shared headers and driver code use the C++17 language contract.

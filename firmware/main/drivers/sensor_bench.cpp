@@ -5,20 +5,35 @@
 #include "robot/drivers/esp_sensor_spi.hpp"
 #include "robot/drivers/mpu6xxx.hpp"
 #include "esp_log.h"
+#include "robot/comms/ble_telemetry.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 namespace robot {
 
-// Serial-only bring-up: fixed lifetime drivers, one bus owner, no control/telemetry task.
+// Bring-up with optional BLE snapshots: fixed lifetime drivers, one bus owner, no control task.
 void runSensorBench() {
     constexpr char tag[] = "sensor_bench";
     static EspSensorSpi bus({CONFIG_ROBOT_SPI_SCK, CONFIG_ROBOT_SPI_MISO, CONFIG_ROBOT_SPI_MOSI,
                             CONFIG_ROBOT_IMU_CS, CONFIG_ROBOT_LEFT_ENCODER_CS, CONFIG_ROBOT_RIGHT_ENCODER_CS});
+    // Advertising remains available even if sensor initialization fails.
+#if CONFIG_ROBOT_BLE_TELEMETRY
+    const auto ble_result = startBleTelemetry();
+    ESP_LOGI(tag, "BLE startup=%s", esp_err_to_name(ble_result));
+#endif
     const esp_err_t bus_result = bus.initialize();
     if (bus_result != ESP_OK) {
         ESP_LOGE(tag, "SPI initialization failed: %s", esp_err_to_name(bus_result));
+        // A BLE heartbeat distinguishes failed sensors from a lost radio connection.
+#if CONFIG_ROBOT_BLE_TELEMETRY
+        EspSensorClock failed_clock;
+        while (true) {
+            publishBleTelemetry(failed_clock.nowUs(), {}, {});
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+#else
         return;
+#endif
     }
     static EspSensorClock clock;
     static EspImuSpi imu_io(bus);
@@ -45,6 +60,7 @@ void runSensorBench() {
         const auto wheel_result = encoders.read(&wheels);
         // Decimate logging to limit serial overhead without slowing normal sensor polling.
         if (count++ % 10 == 0) {
+            publishBleTelemetry(clock.nowUs(), sample, wheels);
             if (sample.valid) {
                 ESP_LOGI(tag, "imu t=%lld accel_m_s2=(%.3f,%.3f,%.3f) gyro_rad_s=(%.3f,%.3f,%.3f) attitude=unavailable",
                          static_cast<long long>(sample.timestamp_us), sample.acceleration_m_s2.x,

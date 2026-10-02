@@ -30,14 +30,70 @@ between tasks: its ownership is the single bench task, including each encoder's
 command/response pair. IDF v5.4 acquisition/polling waits are indefinite; an
 independently enforced deadline is required before control-loop integration.
 
+## Prepare Terminal and find the ESP32 port (macOS)
+
+1. Open Terminal and enter this checkout's firmware directory:
+
+   ```sh
+   cd "/Users/rogercarrick/Library/CloudStorage/OneDrive-Personal/Projects/balancing-robot/firmware"
+   ```
+
+2. Activate the installed ESP-IDF environment in that Terminal window:
+
+   ```sh
+   source "/Users/rogercarrick/.espressif/esp-idf/export.sh"
+   idf.py --version
+   ```
+
+   Expect ESP-IDF v5.4. Repeat the activation in each new Terminal window.
+   If `idf.py` is not found, run the `source` command again. On another computer,
+   substitute that computer's project and ESP-IDF installation paths.
+
+3. With the ESP32 unplugged, list the serial ports:
+
+   ```sh
+   ls /dev/cu.*
+   ```
+
+4. Connect the board using a USB data cable, preferably through its USB-to-UART
+   connector, then run `ls /dev/cu.*` again. The new entry is the board's port.
+   It may look like `/dev/cu.usbserial-…`, `/dev/cu.SLAB_USBtoUART`, or
+   `/dev/cu.usbmodem…`. Ignore Bluetooth ports. Copy the full actual path;
+   the examples are not literal port names.
+
+5. Replace `YOUR_PORT` in the flash/monitor command below with that path, for
+   example `-p /dev/cu.usbmodem123456`. Recheck after reconnecting or changing
+   USB connectors because the port name may change.
+
+If no new port appears, try another computer USB port, connect directly instead
+of through a hub, and try another known-good data cable. Changing the computer
+USB port restored detection during this project's bring-up. If the power LED
+is off or flickering, unplug the board, disconnect sensors/external power, and
+check the bare board on USB before reconnecting peripherals. If power is stable
+but the port remains missing, hold **BOOT**, press and release **RESET**, then
+release **BOOT** and list the ports again to check download mode. This button
+sequence is documented in the [Espressif board guide](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.0.html).
+
 ## Build and configure
 
-With the installed ESP-IDF v5.4 environment, from `firmware`:
+After activating ESP-IDF and finding the port as described above, build:
 
 ```sh
 idf.py -B build-sensor-bench -D SDKCONFIG=sdkconfig.sensor-bench \
   -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.sensor-bench.defaults' build
 ```
+
+After confirming the wiring, replace `YOUR_PORT` with the actual port from the
+setup steps, then flash and open the monitor:
+
+```sh
+idf.py -B build-sensor-bench -D SDKCONFIG=sdkconfig.sensor-bench \
+  -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.sensor-bench.defaults' \
+  -p YOUR_PORT flash monitor
+```
+
+Exit the monitor with **Control + ]**. The board keeps running until power is
+disconnected.
 
 The opt-in defaults enable `CONFIG_ROBOT_SENSOR_BENCH`; ordinary builds leave
 it disabled. To change pins, software encoder zeros or direction, use the same
@@ -85,7 +141,7 @@ bounds before any controller uses these measurements.
 
 ## Verification
 
-Seven host suites use sanitizers and the real decoding logic, with fake register
+Eight host suites use sanitizers and the real decoding logic, with fake register
 and SPI-frame transports to exercise identity, configuration, signed scaling,
 freshness, clipping, transport faults, parity, diagnostic faults, wraparound,
 direction, gaps, speed limits and recovery. ESP32-S3 default and bench builds
@@ -96,3 +152,6 @@ Register references: [MPU-6500 register map](https://www.ic-components.se/files/
 [MPU-9250 register map](https://cdn.sparkfun.com/assets/learn_tutorials/5/5/0/MPU-9250-Register-Map.pdf),
 [AS5048A manufacturer datasheet](https://www.mouser.com/datasheet/2/588/AS5048_DS000298_4_00-2324531.pdf),
 [ESP-IDF v5.4 SPI API](https://docs.espressif.com/projects/esp-idf/en/v5.4/esp32s3/api-reference/peripherals/spi_master.html).
+
+For phone display, use the separate [BLE sensor bench](ble-sensor-bench.md).
+The commands above continue to build the serial-only variant.

@@ -1,32 +1,19 @@
 package org.example.balancingrobot.connection
 
 import org.example.balancingrobot.protocol.ControlCommand
+import org.example.balancingrobot.protocol.SensorTelemetry
 
-/** Transport boundary; acceptance by send must not be treated as hardware arming.
- * A future asynchronous adapter must dispatch UI callbacks on the main thread. */
+data class RobotDevice(val address: String, val name: String)
+/** All listener calls arrive on the main thread. Telemetry is available only after CCCD success. */
 interface RobotConnection {
     val isConnected: Boolean
-    fun connect(onStateChanged: (String) -> Unit)
+    interface Listener {
+        fun onState(message: String, dataFresh: Boolean = false)
+        fun onDevices(devices: List<RobotDevice>)
+        fun onTelemetry(snapshot: SensorTelemetry)
+    }
+    fun scan()
+    fun connect(address: String)
     fun send(command: ControlCommand): Result<Unit>
     fun disconnect()
-}
-
-/**
- * Deliberately nonfunctional BLE adapter scaffold. It never reports a successful
- * connection and never transmits commands until GATT discovery, pairing, and
- * the firmware service are implemented and tested.
- */
-class BleRobotConnection : RobotConnection {
-    override val isConnected: Boolean = false
-
-    override fun connect(onStateChanged: (String) -> Unit) {
-        onStateChanged("BLE transport not implemented — robot control unavailable")
-    }
-
-    // Fail explicitly rather than allowing the UI to infer a successful robot command.
-    override fun send(command: ControlCommand): Result<Unit> =
-        Result.failure(IllegalStateException("BLE transport is not implemented"))
-
-    // No resources are allocated by this placeholder, so teardown is intentionally inert.
-    override fun disconnect() = Unit
 }
