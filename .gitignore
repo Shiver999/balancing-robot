@@ -20,3 +20,13 @@ android/local.properties
 .vscode/settings.json
 .DS_Store
 *.swp
+
+# Temporary IMU identity diagnostic build
+firmware/build-imu-i2c/
+firmware/sdkconfig.imu-i2c
+firmware/sdkconfig.imu-i2c.old
+
+# Full sensor bench with dedicated IMU I2C configuration
+firmware/build-i2c-sensors/
+firmware/sdkconfig.i2c-sensors
+firmware/sdkconfig.i2c-sensors.old

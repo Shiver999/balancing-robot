@@ -1,0 +1,4 @@
+# Identity-only diagnostic: no SPI, BLE, sensor configuration or actuation.
+CONFIG_ROBOT_IMU_I2C_DIAGNOSTIC=y
+CONFIG_ROBOT_SENSOR_BENCH=n
+CONFIG_BT_ENABLED=n

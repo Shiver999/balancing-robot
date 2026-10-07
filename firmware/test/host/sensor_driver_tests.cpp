@@ -84,6 +84,7 @@ void imuTests() {
     CHECK(imu.read(nullptr) == ESP_ERR_INVALID_ARG);
     Registers wrong; wrong.regs[0x75] = 0xFF; Mpu6xxx unknown(wrong, clock);
     CHECK(unknown.initialize() == ESP_ERR_NOT_SUPPORTED);
+    CHECK(unknown.deviceId() == 0xFF); // Rejected identities must remain visible in bench logs.
     Registers mismatch; mismatch.mismatch = true; Mpu6xxx failed(mismatch, clock);
     CHECK(failed.initialize() == ESP_ERR_INVALID_RESPONSE);
     CHECK(failed.read(&sample) == ESP_ERR_INVALID_STATE);
@@ -92,6 +93,12 @@ void imuTests() {
     CHECK(write_failed.read(&sample) == ESP_ERR_INVALID_STATE);
     Registers newer; newer.regs[0x75] = 0x71; Mpu6xxx m9250(newer, clock);
     CHECK(m9250.initialize() == ESP_OK);
+    Registers i2c_regs; Mpu6xxx i2c_imu(i2c_regs, clock, ImuTransport::kI2c);
+    CHECK(i2c_imu.initialize() == ESP_OK);
+    CHECK(i2c_regs.regs[0x6A] == 0); // Never disable I2C while communicating over it.
+    i2c_regs.regs[0x3A] = 1; i2c_regs.raw(2, 8192);
+    CHECK(i2c_imu.read(&sample) == ESP_OK && sample.valid);
+    CHECK(std::fabs(sample.acceleration_m_s2.z - 9.80665F) < 0.0001F);
     newer.regs.fill(255); CHECK(m9250.read(&sample) == ESP_ERR_INVALID_RESPONSE);
 }
 // Validate delayed responses, error clearing and magnet/offset diagnostic gates.

@@ -22,6 +22,7 @@ esp_err_t EspSensorSpi::initialize() {
     const int pins[] = {pins_.sck, pins_.miso, pins_.mosi,
                         pins_.imu_cs, pins_.left_cs, pins_.right_cs};
     for (unsigned i = 0; i < 6; ++i) {
+        if (i == 3 && pins[i] == -1) continue; // No IMU SPI chip select in I2C mode.
         if (!sensorPinAllowed(pins[i])) return ESP_ERR_INVALID_ARG;
         for (unsigned j = 0; j < i; ++j) {
             if (pins[i] == pins[j]) return ESP_ERR_INVALID_ARG;
@@ -29,7 +30,7 @@ esp_err_t EspSensorSpi::initialize() {
     }
     // Deselect every module before enabling the shared clock/data peripheral.
     gpio_config_t chip_selects{};
-    chip_selects.pin_bit_mask = (1ULL << pins_.imu_cs) | (1ULL << pins_.left_cs) |
+    chip_selects.pin_bit_mask = (pins_.imu_cs >= 0 ? (1ULL << pins_.imu_cs) : 0) | (1ULL << pins_.left_cs) |
                                 (1ULL << pins_.right_cs);
     chip_selects.mode = GPIO_MODE_OUTPUT;
     chip_selects.pull_up_en = GPIO_PULLUP_ENABLE;
@@ -37,6 +38,7 @@ esp_err_t EspSensorSpi::initialize() {
     if (result != ESP_OK) return result;
     const int cs[] = {pins_.imu_cs, pins_.left_cs, pins_.right_cs};
     for (int pin : cs) {
+        if (pin < 0) continue;
         result = gpio_set_level(static_cast<gpio_num_t>(pin), 1);
         if (result != ESP_OK) return result;
     }
@@ -52,6 +54,7 @@ esp_err_t EspSensorSpi::initialize() {
     if (result != ESP_OK) return result;
     // Device modes are switched while acquiring the bus, before manual CS goes low.
     for (unsigned i = 0; i < 3; ++i) {
+        if (i == 0 && pins_.imu_cs < 0) continue;
         spi_device_interface_config_t device{};
         device.clock_speed_hz = 1000000; // Conservative register/SPI bench rate.
         device.mode = i == 0 ? 3 : 1; // MPU vs AS5048A
@@ -60,7 +63,7 @@ esp_err_t EspSensorSpi::initialize() {
         result = spi_bus_add_device(kHost, &device, &devices_[i]);
         if (result != ESP_OK) {
             for (unsigned j = 0; j < i; ++j) {
-                (void)spi_bus_remove_device(devices_[j]);
+                if (devices_[j] != nullptr) (void)spi_bus_remove_device(devices_[j]);
                 devices_[j] = nullptr;
             }
             (void)spi_bus_free(kHost);
@@ -78,6 +81,7 @@ esp_err_t EspSensorSpi::exchange(Device device, const std::uint8_t* tx,
     if (index >= 3 || tx == nullptr || rx == nullptr || length == 0 || length > 16) {
         return ESP_ERR_INVALID_ARG;
     }
+    if (devices_[index] == nullptr) return ESP_ERR_INVALID_STATE;
     const int cs[] = {pins_.imu_cs, pins_.left_cs, pins_.right_cs};
     // IDF v5.4 requires portMAX_DELAY. This bus has one bench-task owner;
     // control-loop integration must add an independently enforced deadline.

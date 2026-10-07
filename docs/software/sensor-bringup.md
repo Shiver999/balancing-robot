@@ -1,29 +1,39 @@
 # Sensor bring-up (motor-disabled bench)
 
 The real drivers support the six-axis portion of MPU-6500 (`WHO_AM_I=0x70`)
-and MPU-9250 (`0x71`), plus two AS5048A SPI encoders. Other IMU identities are
+and MPU-9250 (`0x71`), plus two AS5048A SPI encoders. The IMU now uses a dedicated I²C bus
+after hardware testing confirmed WHO_AM_I=0x70 over I²C. Other IMU identities are
 rejected. No magnetometer, DMP, bias calibration, body-frame transform, attitude
 estimator, BLE streaming or motor actuation is implemented here.
 
-## Confirmed SPI wiring
+## Current wiring: I²C IMU and SPI encoders
 
 | Signal | ESP32-S3 GPIO |
 | --- | --- |
-| Shared SCK | 7 |
-| Shared MISO | 6 |
-| Shared MOSI | 5 |
-| IMU chip select | 4 |
+| Encoder SPI SCK | 7 |
+| Encoder SPI MISO | 6 |
+| Encoder SPI MOSI | 5 |
+| IMU SDA/SDI | 17 |
+| IMU SCL/SCLK | 4 |
+| IMU NCS | 3V3, no GPIO connection |
+| IMU AD0/SDO | GND, selects address 0x68 |
+| IMU FSYNC | GND |
 | Left encoder chip select | 15 |
 | Right encoder chip select | 16 |
 
 Use a common ground and verified 3.3 V supply/logic for these modules. Check the
 actual breakout labels and schematic before connecting; IMU boards may label
-SPI signals with their alternate I²C names. Each module needs a separate chip
-select and must release MISO when deselected. Keep motors disconnected and
+SPI signals with their alternate I²C names. Each encoder needs its own chip select and must release MISO when deselected.
+Leave IMU INT/EDA/ECL disconnected. Move the IMU SDA from diagnostic GPIO5
+to GPIO17 and SCL from diagnostic GPIO7 to GPIO4 with power off; GPIO5/7
+remain reserved for encoder SPI. Keep NCS at 3V3 and AD0/FSYNC grounded.
+The temporary identity diagnostic still uses GPIO5/7 and is a different build.
+Use suitable I²C pull-ups to 3V3 if the breakout lacks them (typically 4.7 kΩ). Keep motors disconnected and
 motor drivers physically disabled throughout bring-up.
 
-The ESP-IDF adapter uses SPI2 at 1 MHz, mode 3 for the IMU and mode 1 for each
-encoder. Software chip select provides at least 1 µs setup, hold and inter-frame
+The I²C adapter runs at 100 kHz with 20 ms transaction timeouts. SPI2 runs
+at 1 MHz, mode 1 for each encoder. Optional legacy IMU SPI mode 3 remains
+available by disabling CONFIG_ROBOT_IMU_USE_I2C and restoring SPI wiring. Software chip select provides at least 1 µs setup, hold and inter-frame
 high time. Configuration rejects duplicate GPIOs and reserved memory, native
 USB, strapping and revision-dependent LED pins. Do not share this adapter
 between tasks: its ownership is the single bench task, including each encoder's
@@ -79,7 +89,7 @@ sequence is documented in the [Espressif board guide](https://docs.espressif.com
 After activating ESP-IDF and finding the port as described above, build:
 
 ```sh
-idf.py -B build-sensor-bench -D SDKCONFIG=sdkconfig.sensor-bench \
+idf.py -B build-i2c-sensors -D SDKCONFIG=sdkconfig.i2c-sensors \
   -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.sensor-bench.defaults' build
 ```
 
@@ -87,7 +97,7 @@ After confirming the wiring, replace `YOUR_PORT` with the actual port from the
 setup steps, then flash and open the monitor:
 
 ```sh
-idf.py -B build-sensor-bench -D SDKCONFIG=sdkconfig.sensor-bench \
+idf.py -B build-i2c-sensors -D SDKCONFIG=sdkconfig.i2c-sensors \
   -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.sensor-bench.defaults' \
   -p YOUR_PORT flash monitor
 ```
@@ -95,13 +105,17 @@ idf.py -B build-sensor-bench -D SDKCONFIG=sdkconfig.sensor-bench \
 Exit the monitor with **Control + ]**. The board keeps running until power is
 disconnected.
 
-The opt-in defaults enable `CONFIG_ROBOT_SENSOR_BENCH`; ordinary builds leave
+The opt-in defaults enable `CONFIG_ROBOT_SENSOR_BENCH` and
+`CONFIG_ROBOT_IMU_USE_I2C`; ordinary builds leave
 it disabled. To change pins, software encoder zeros or direction, use the same
 arguments with `menuconfig` and open **Robot sensor bench**. Directions must be
 +1 or -1; zero is rejected. These values change software interpretation only,
 without programming encoder OTP. Retain the same build/config arguments when
 building or, after checking the physical wiring, flashing and monitoring.
-No hardware was flashed during implementation.
+If an existing sdkconfig retains old settings, open menuconfig and ensure
+**Use dedicated I2C bus for IMU** is enabled with SDA17, SCL4, address104.
+Supplemental defaults do not override existing configuration values.
+No hardware was flashed by the agent during implementation.
 
 The startup motor stub reports unavailable and remains disabled. The bench then
 prints IMU identity and initialization results, polls at nominally 100 Hz and
@@ -155,3 +169,6 @@ Register references: [MPU-6500 register map](https://www.ic-components.se/files/
 
 For phone display, use the separate [BLE sensor bench](ble-sensor-bench.md).
 The commands above continue to build the serial-only variant.
+
+If SPI identity reads fail, use the separate [I²C identity diagnostic](imu-i2c-diagnostic.md)
+with its alternate wiring. Do not use I²C wiring with the SPI bench.

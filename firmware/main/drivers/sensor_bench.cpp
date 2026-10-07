@@ -4,6 +4,7 @@
 #include "robot/drivers/as5048a.hpp"
 #include "robot/drivers/esp_sensor_spi.hpp"
 #include "robot/drivers/mpu6xxx.hpp"
+#include "robot/drivers/esp_imu_i2c.hpp"
 #include "esp_log.h"
 #include "robot/comms/ble_telemetry.hpp"
 #include "freertos/FreeRTOS.h"
@@ -15,29 +16,43 @@ namespace robot {
 void runSensorBench() {
     constexpr char tag[] = "sensor_bench";
     static EspSensorSpi bus({CONFIG_ROBOT_SPI_SCK, CONFIG_ROBOT_SPI_MISO, CONFIG_ROBOT_SPI_MOSI,
-                            CONFIG_ROBOT_IMU_CS, CONFIG_ROBOT_LEFT_ENCODER_CS, CONFIG_ROBOT_RIGHT_ENCODER_CS});
+#if CONFIG_ROBOT_IMU_USE_I2C
+                            -1,
+#else
+                            CONFIG_ROBOT_IMU_CS,
+#endif
+                            CONFIG_ROBOT_LEFT_ENCODER_CS, CONFIG_ROBOT_RIGHT_ENCODER_CS});
+#if CONFIG_ROBOT_IMU_USE_I2C
+    // Reject cross-bus overlap before either adapter can reconfigure another bus's GPIOs.
+    const int spi_pins[]{CONFIG_ROBOT_SPI_SCK, CONFIG_ROBOT_SPI_MISO, CONFIG_ROBOT_SPI_MOSI,
+                         CONFIG_ROBOT_LEFT_ENCODER_CS, CONFIG_ROBOT_RIGHT_ENCODER_CS};
+    for (int pin : spi_pins) {
+        if (pin == CONFIG_ROBOT_IMU_I2C_SDA || pin == CONFIG_ROBOT_IMU_I2C_SCL) {
+            ESP_LOGE(tag, "IMU I2C and encoder SPI pins overlap; fix menuconfig");
+            return;
+        }
+    }
+#endif
     // Advertising remains available even if sensor initialization fails.
 #if CONFIG_ROBOT_BLE_TELEMETRY
     const auto ble_result = startBleTelemetry();
     ESP_LOGI(tag, "BLE startup=%s", esp_err_to_name(ble_result));
 #endif
     const esp_err_t bus_result = bus.initialize();
-    if (bus_result != ESP_OK) {
-        ESP_LOGE(tag, "SPI initialization failed: %s", esp_err_to_name(bus_result));
-        // A BLE heartbeat distinguishes failed sensors from a lost radio connection.
-#if CONFIG_ROBOT_BLE_TELEMETRY
-        EspSensorClock failed_clock;
-        while (true) {
-            publishBleTelemetry(failed_clock.nowUs(), {}, {});
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
-#else
-        return;
-#endif
-    }
+    ESP_LOGI(tag, "Encoder SPI startup=%s", esp_err_to_name(bus_result));
     static EspSensorClock clock;
+#if CONFIG_ROBOT_IMU_USE_I2C
+    static EspImuI2c imu_io(CONFIG_ROBOT_IMU_I2C_SDA, CONFIG_ROBOT_IMU_I2C_SCL, CONFIG_ROBOT_IMU_I2C_ADDRESS);
+    const auto imu_transport_result = imu_io.initialize();
+    ESP_LOGI(tag, "IMU I2C SDA=%d SCL=%d address=0x%02x startup=%s",
+             CONFIG_ROBOT_IMU_I2C_SDA, CONFIG_ROBOT_IMU_I2C_SCL, CONFIG_ROBOT_IMU_I2C_ADDRESS,
+             esp_err_to_name(imu_transport_result));
+    static Mpu6xxx imu(imu_io, clock, ImuTransport::kI2c);
+#else
     static EspImuSpi imu_io(bus);
+    const auto imu_transport_result = bus_result;
     static Mpu6xxx imu(imu_io, clock);
+#endif
     static EspEncoderSpi left_io(bus, EspSensorSpi::Device::kLeft);
     static EspEncoderSpi right_io(bus, EspSensorSpi::Device::kRight);
     static As5048a left(left_io), right(right_io);
@@ -45,8 +60,8 @@ void runSensorBench() {
         {CONFIG_ROBOT_LEFT_ENCODER_DIRECTION, CONFIG_ROBOT_RIGHT_ENCODER_DIRECTION,
          CONFIG_ROBOT_LEFT_ENCODER_ZERO, CONFIG_ROBOT_RIGHT_ENCODER_ZERO, 100.0F, 20000});
     // Report independent initialization results; failures are not replaced with fake data.
-    const auto imu_init = imu.initialize();
-    const auto encoder_init = encoders.initialize();
+    const auto imu_init = imu_transport_result == ESP_OK ? imu.initialize() : imu_transport_result;
+    const auto encoder_init = bus_result == ESP_OK ? encoders.initialize() : bus_result;
     ESP_LOGI(tag, "IMU init=%s WHO_AM_I=0x%02x; encoders init=%s; MOTOR OUTPUT DISABLED",
              esp_err_to_name(imu_init), imu.deviceId(), esp_err_to_name(encoder_init));
     TickType_t period = pdMS_TO_TICKS(10); // Bench polling, not a balancing loop.

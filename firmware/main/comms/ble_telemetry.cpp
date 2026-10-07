@@ -2,6 +2,7 @@
 #include "robot/comms/ble_telemetry.hpp"
 #if CONFIG_ROBOT_BLE_TELEMETRY
 #include "robot/comms/telemetry.hpp"
+#include "robot/drivers/ble_status_led.hpp"
 #include "esp_log.h"
 #include <atomic>
 #include "nvs_flash.h"
@@ -55,6 +56,9 @@ void advertise() {
     if (rc != 0) ESP_LOGE(tag, "Advertising failed: %d", rc);
 }
 int gapEvent(ble_gap_event* event, void*) {
+    // Update desired color without waiting for LED transmission on the host task.
+    if (event->type == BLE_GAP_EVENT_CONNECT) setBleStatusConnected(event->connect.status == 0);
+    if (event->type == BLE_GAP_EVENT_DISCONNECT) setBleStatusConnected(false);
     if ((event->type == BLE_GAP_EVENT_CONNECT && event->connect.status != 0) ||
         event->type == BLE_GAP_EVENT_DISCONNECT || event->type == BLE_GAP_EVENT_ADV_COMPLETE) advertise();
     return 0;
@@ -63,11 +67,14 @@ void synced() {
     if (ble_hs_util_ensure_addr(0) == 0 && ble_hs_id_infer_auto(0, &address_type) == 0) { host_ready.store(true); advertise(); }
     else ESP_LOGE(tag, "BLE address unavailable");
 }
-void reset(int reason) { host_ready.store(false); ESP_LOGW(tag, "BLE host reset: %d", reason); }
-void hostTask(void*) { nimble_port_run(); nimble_port_freertos_deinit(); }
+void reset(int reason) { setBleStatusConnected(false); host_ready.store(false); ESP_LOGW(tag, "BLE host reset: %d", reason); }
+void hostTask(void*) { nimble_port_run(); setBleStatusConnected(false); nimble_port_freertos_deinit(); }
 }
 esp_err_t startBleTelemetry() {
     if (started) return ESP_ERR_INVALID_STATE;
+    // Indicator failure must not prevent connection or telemetry.
+    const auto led_result = startBleStatusLed();
+    if (led_result != ESP_OK) ESP_LOGW(tag, "Status LED unavailable: %s", esp_err_to_name(led_result));
     // Do not erase persistent storage automatically when initialization fails.
     esp_err_t result = nvs_flash_init();
     if (result != ESP_OK) return result;

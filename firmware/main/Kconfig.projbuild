@@ -1,8 +1,17 @@
 # Opt-in acquisition only; these settings do not enable motor drivers or balancing.
 menu "Robot sensor bench"
 
+config ROBOT_IMU_I2C_DIAGNOSTIC
+    bool "Enable identity-only IMU I2C diagnostic (requires alternate wiring)"
+    default n
+    help
+        Probe 0x68/0x69 and read WHO_AM_I using SDA GPIO5 and SCL GPIO7.
+        NCS must be wired to 3V3 and AD0 to GND, disconnected from ESP GPIOs.
+        No SPI, BLE or motor output is started in this mode.
+
 config ROBOT_SENSOR_BENCH
     bool "Enable real sensors in motor-disabled bench mode"
+    depends on !ROBOT_IMU_I2C_DIAGNOSTIC
     default n
     help
         Poll real MPU-6500/9250 and AS5048A sensors and log to serial. Confirm
@@ -20,6 +29,43 @@ config ROBOT_BLE_TELEMETRY
         Advertise Balancing Robot and publish live sensor snapshots.
         This service allows no command writes and does not enable motors.
 
+config ROBOT_BLE_STATUS_LED
+    bool "Show BLE connection on onboard RGB LED"
+    depends on ROBOT_BLE_TELEMETRY
+    default y
+
+choice ROBOT_STATUS_LED_PIN
+    prompt "Onboard RGB LED GPIO"
+    depends on ROBOT_BLE_STATUS_LED
+    default ROBOT_STATUS_LED_GPIO48
+config ROBOT_STATUS_LED_GPIO48
+    bool "GPIO48 (original DevKitC-1)"
+config ROBOT_STATUS_LED_GPIO38
+    bool "GPIO38 (DevKitC-1 v1.1)"
+endchoice
+
+config ROBOT_IMU_USE_I2C
+    bool "Use dedicated I2C bus for IMU (encoders remain SPI)"
+    default y
+    help
+        Keep IMU NCS tied to 3V3 and AD0 grounded. Move SDA/SCL to the
+        dedicated I2C pins below. I2C must remain enabled in USER_CTRL.
+
+if ROBOT_IMU_USE_I2C
+config ROBOT_IMU_I2C_SDA
+    int "IMU I2C SDA GPIO"
+    range 0 48
+    default 17
+config ROBOT_IMU_I2C_SCL
+    int "IMU I2C SCL GPIO"
+    range 0 48
+    default 4
+config ROBOT_IMU_I2C_ADDRESS
+    int "IMU I2C address (104=0x68, 105=0x69)"
+    range 104 105
+    default 104
+endif
+
 config ROBOT_SPI_SCK
     int "Sensor SPI SCK GPIO"
     range 0 48
@@ -34,6 +80,7 @@ config ROBOT_SPI_MOSI
     default 5
 config ROBOT_IMU_CS
     int "IMU chip-select GPIO"
+    depends on !ROBOT_IMU_USE_I2C
     range 0 48
     default 4
 config ROBOT_LEFT_ENCODER_CS

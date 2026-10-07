@@ -21,7 +21,7 @@ flowchart TB
     WR[Right wheel]
     BUCK[Wide-input buck converter\ninput rated above 16.8 V + transients]
     MCU[ESP32-S3 controller]
-    IMU[One GY-6500 / GY-9250 IMU module\nSPI or I²C; confirm fitted sensor IC]
+    IMU[One GY-6500 / GY-9250 IMU module\nI²C; identified as MPU-6500]
     ENCL[Left AS5048A encoder]
     ENCR[Right AS5048A encoder]
     ESTOP[Hardware motor-disable / E-stop]
@@ -36,7 +36,7 @@ flowchart TB
     MCU -->|PWM / enable| DRVR
     ESTOP -->|forces both drivers disabled| DRVL
     ESTOP -->|forces both drivers disabled| DRVR
-    MCU <-->|I2C or SPI; verify module| IMU
+    MCU <-->|I²C| IMU
     MCU <-->|SPI: shared clock/data, dedicated CS| ENCL
     MCU <-->|SPI: shared clock/data, dedicated CS| ENCR
 ```
@@ -76,8 +76,8 @@ new allocation.
 
 | Signal | Proposed GPIO | Notes |
 |---|---|---|
-| Shared sensor SPI SCK / MISO / MOSI | 7 / 6 / 5 | IMU and both encoders; configure SPI mode/speed per device and verify MISO release |
-| IMU CS / optional interrupt | 4 / 17 | Verify mode-selection and interrupt polarity |
+| Shared sensor SPI SCK / MISO / MOSI | 7 / 6 / 5 | Both encoders; IMU now uses separate I²C pins |
+| IMU I²C SCL / SDA | 4 / 17 | NCS tied to 3V3; AD0 and FSYNC grounded; INT unused |
 | Left / right encoder CS | 15 / 16 | Separate chip selects on the shared SPI bus |
 | Left PWM A / B / C | 8 / 9 / 10 | No output enabled by current firmware |
 | Left enable / fault | 11 / 12 | Verify polarity and hardware disable defaults |
@@ -121,6 +121,14 @@ Never leave the Li-ion pack charging unattended. Do not charge a swollen, damage
 
 At 319 KV, the ideal no-load speed estimate is $319\,\mathrm{rpm/V} \times 14.8\,\mathrm{V} \approx 4{,}715\,\mathrm{rpm}$ nominal and $319\,\mathrm{rpm/V} \times 16.8\,\mathrm{V} \approx 5{,}359\,\mathrm{rpm}$ at full charge. KV alone does not establish torque, stall current, loaded speed, driver suitability, or whether direct drive is appropriate.
 
-The motor-disabled sensor bench now uses the confirmed SPI wiring above, with
-per-device modes and 1 MHz clocks. GPIO configuration is opt-in; see
+The motor-disabled sensor bench now uses dedicated IMU I²C and the encoder SPI wiring above, with
+100 kHz I²C and 1 MHz SPI clocks. GPIO configuration is opt-in; see
 [bring-up instructions](../software/sensor-bringup.md).
+
+### Verified IMU interface update
+
+Hardware identity testing returned MPU-6500 WHO_AM_I=0x70 repeatedly at I²C
+address0x68. The current bench uses IMU SDA GPIO17 and SCL GPIO4; NCS is
+tied to 3V3 and AD0/FSYNC to GND. This supersedes the provisional IMU SPI
+CS4/optional INT17 assignment. Encoders retain SPI SCK7/MISO6/MOSI5
+and CS15/16. The diagnostic-only firmware still uses SDA5/SCL7 in isolation.

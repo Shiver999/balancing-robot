@@ -52,7 +52,7 @@ sequence is documented in the [Espressif board guide](https://docs.espressif.com
 
 ## Build the ESP32 BLE bench
 
-Keep the existing SPI wiring and motors disconnected. After completing the
+Use the updated [I²C IMU / SPI encoder wiring](sensor-bringup.md) and keep motors disconnected. After completing the
 Terminal setup above, run:
 
 ```sh
@@ -71,12 +71,36 @@ idf.py -B build-ble-bench -D SDKCONFIG=sdkconfig.ble-bench \
 Exit the serial monitor with **Control + ]**; the board keeps running until power
 is disconnected.
 
+The defaults now select IMU I²C (SDA17/SCL4/address0x68) and encoder SPI.
+If reusing an existing sdkconfig, verify these values in menuconfig; defaults
+do not overwrite saved configuration.
+
 The new opt-in defaults enable NimBLE and `CONFIG_ROBOT_BLE_TELEMETRY`.
 The ordinary sensor-bench defaults still produce serial-only firmware; the
 ordinary default firmware remains idle. The BLE device advertises as
 **Balancing Robot**. Advertising starts independently of sensor initialization;
 a failed SPI bus still publishes unavailable-sensor heartbeats. Sensor startup
 failures require correcting the wiring/magnets and rebooting.
+
+## Onboard Bluetooth status LED
+
+The BLE bench enables the onboard NeoPixel status indicator by default:
+red while disconnected, blue while a BLE central (normally the Android app)
+is connected. Failed connection attempts, disconnects and host resets return
+it to red. Blue indicates the BLE link, not telemetry freshness or motor readiness.
+A separate task updates the pixel at modest brightness; LED failures are logged
+without preventing telemetry startup. Serial-only and identity diagnostic builds
+do not drive the pixel.
+
+In **Robot sensor bench** menuconfig, select **Onboard RGB LED GPIO**:
+GPIO48 is the default for the original DevKitC-1; select GPIO38 for v1.1 boards
+([Espressif board revision guide](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.1.html)).
+Only one pin is driven; confirm your board's wiring if the LED stays dark.
+The sensor adapters reserve both pins, preventing conflicts with sensor wiring.
+
+After flashing, verify red at startup, blue on app connection, and red again
+when using Disconnect or turning off phone Bluetooth. Physical LED behavior
+still needs verification on the board.
 
 ## Build/install the Android app
 

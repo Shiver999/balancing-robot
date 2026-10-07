@@ -8,6 +8,9 @@
 
 namespace robot {
 MotorDriver& safeMotorDriver();
+#if CONFIG_ROBOT_IMU_I2C_DIAGNOSTIC
+void runImuI2cDiagnostic();
+#endif
 }
 
 // ESP-IDF entry point has C linkage; static ownership outlives the bench/idle loops.
@@ -19,7 +22,9 @@ extern "C" void app_main() {
     }
 
 // The bench is independent of the unavailable motor adapter; its error is expected.
-#if CONFIG_ROBOT_SENSOR_BENCH
+#if CONFIG_ROBOT_IMU_I2C_DIAGNOSTIC
+    robot::runImuI2cDiagnostic();
+#elif CONFIG_ROBOT_SENSOR_BENCH
     robot::runSensorBench();
 #endif
 

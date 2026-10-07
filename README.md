@@ -11,7 +11,7 @@ Hardware planning, firmware scaffold, and Android remote-control scaffold for an
 
 ## Safety status
 
-The firmware motor driver is intentionally a nonfunctional safe stub. Real SPI drivers for MPU-6500/9250 and both AS5048A encoders are available in an opt-in, motor-disabled [sensor bench](docs/software/sensor-bringup.md). An opt-in [BLE sensor bench and Android viewer](docs/software/ble-sensor-bench.md) provide live read-only telemetry. There is no balance loop or active motor output. The Android app cannot send motor commands. Do not connect motors expecting the current firmware to balance the robot.
+The firmware motor driver is intentionally a nonfunctional safe stub. Real MPU-6500/9250 I²C/SPI drivers and AS5048A SPI encoder drivers are available in an opt-in, motor-disabled [sensor bench](docs/software/sensor-bringup.md). An opt-in [BLE sensor bench and Android viewer](docs/software/ble-sensor-bench.md) provide live read-only telemetry. There is no balance loop or active motor output. The Android app cannot send motor commands. Do not connect motors expecting the current firmware to balance the robot.
 
 Resolve the TBD electrical details in the hardware BOM/architecture before replacing the stubs. Keep the physical motor-disable path independent of firmware and Android connectivity.
 

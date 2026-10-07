@@ -27,6 +27,8 @@ esp_err_t Mpu6xxx::initialize() {
     std::uint8_t id = 0;
     esp_err_t result = io_.readRegisters(kWhoAmI, &id, 1);
     if (result != ESP_OK) return result;
+    // Preserve the actual initial response for diagnostics, including rejected identities.
+    device_id_ = id;
     // Similar module labels are insufficient: only the documented chips are accepted.
     if (id != 0x70 && id != 0x71) return ESP_ERR_NOT_SUPPORTED;
     result = io_.writeRegister(kPowerManagement, 0x80); // Device reset
@@ -36,10 +38,10 @@ esp_err_t Mpu6xxx::initialize() {
     if (result != ESP_OK) return result;
     if (device_id_ != id) return ESP_ERR_INVALID_RESPONSE;
 
-    // Fixed bench profile: PLL clock, all six axes, no FIFO/DMP, SPI only,
+    // Fixed bench profile: PLL clock, all six axes, no FIFO/DMP, selected transport,
     // +/-500 deg/s, +/-4 g, DLPF=3, 200 Hz output, polled data-ready.
-    constexpr std::uint8_t settings[][2] = {
-        {0x6B, 0x01}, {0x6C, 0x00}, {0x6A, 0x10}, {0x23, 0x00},
+    const std::uint8_t settings[][2] = {
+        {0x6B, 0x01}, {0x6C, 0x00}, {0x6A, static_cast<std::uint8_t>(transport_ == ImuTransport::kSpi ? 0x10 : 0x00)}, {0x23, 0x00},
         {0x1A, 0x03}, {0x1B, 0x08}, {0x1C, 0x08}, {0x1D, 0x03},
         {0x19, 0x04}, {0x37, 0x00}, {0x38, 0x01},
     };

@@ -50,7 +50,7 @@ unavailable sensors. They do not validate physical pin levels, timing, or motors
 ## Real sensor bench
 
 See [sensor bring-up](../docs/software/sensor-bringup.md) for wiring, configuration,
-build commands and expected readings. Real MPU-6500/9250 and AS5048A SPI drivers
+build commands and expected readings. Real MPU-6500/9250 I²C/SPI and AS5048A SPI drivers
 are compiled in every build; acquisition is enabled only by
 `CONFIG_ROBOT_SENSOR_BENCH`. Default startup remains idle with motors disabled.
 Host tests additionally cover SI conversion, device identity/configuration,
@@ -70,3 +70,7 @@ The separate `sdkconfig.ble-bench.defaults` adds a NimBLE read/notify status ser
 to the sensor bench. See [Android connection and live sensors](../docs/software/ble-sensor-bench.md)
 for build/flash/install steps and the 60-byte shared contract. Ordinary builds
 keep BLE disabled. There is no command-write characteristic or motor enable.
+
+The bench defaults now use IMU I²C at SDA17/SCL4/address0x68 and encoder SPI
+at GPIO5/6/7 with CS15/16. See the updated wiring table before flashing; the
+identity-only diagnostic retains its separate GPIO5/7 I²C wiring.

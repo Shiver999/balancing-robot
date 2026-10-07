@@ -204,8 +204,8 @@ Do not finalize loop rate, PID gains, motor current limits, BLE lease duration, 
 
 ### Real sensor acquisition implemented
 
-The opt-in [sensor bench](sensor-bringup.md) composes MPU-6500/9250 six-axis SPI
-acquisition and two AS5048A SPI angle drivers on an ESP-IDF SPI2 adapter. Raw IMU
+The opt-in [sensor bench](sensor-bringup.md) composes MPU-6500/9250 six-axis I²C
+acquisition and two AS5048A SPI angle drivers on separate ESP-IDF I²C and SPI2 adapters. Raw IMU
 `valid` does not imply `attitude_valid`; pitch remains unavailable. Wheel angle
 `valid` does not imply `velocity_valid`, especially after startup or a gap/fault.
 The bench has a single owning task and leaves motor actuation disabled. It is

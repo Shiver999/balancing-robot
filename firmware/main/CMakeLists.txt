@@ -14,8 +14,11 @@ idf_component_register(
         "drivers/as5048a.cpp"
         "drivers/esp_sensor_spi.cpp"
         "drivers/sensor_bench.cpp"
+        "drivers/imu_i2c_diagnostic.cpp"
+        "drivers/esp_imu_i2c.cpp"
+        "drivers/ble_status_led.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES freertos log esp_timer esp_driver_spi esp_driver_gpio bt nvs_flash
+    REQUIRES esp_driver_rmt freertos log esp_timer esp_driver_spi esp_driver_gpio esp_driver_i2c bt nvs_flash
 )
 
 # Shared headers and driver code use the C++17 language contract.
