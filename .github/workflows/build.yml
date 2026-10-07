@@ -77,6 +77,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+      # Provision command-line tools and put sdkmanager on PATH explicitly.
+      - uses: android-actions/setup-android@v3
       - name: Install required Android SDK packages
         run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
       - name: Build APK and run protocol tests
