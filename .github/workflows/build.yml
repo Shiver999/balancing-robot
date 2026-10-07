@@ -79,6 +79,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       # Provision command-line tools and put sdkmanager on PATH explicitly.
       - uses: android-actions/setup-android@v3
+        with:
+          # The action defaults include the retired SDK package named "tools".
+          packages: platform-tools
       - name: Install required Android SDK packages
         run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
       - name: Build APK and run protocol tests
