@@ -68,6 +68,7 @@ jobs:
           path: firmware
           command: idf.py -B build-imu-i2c -D SDKCONFIG=sdkconfig.imu-i2c -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.imu-i2c.defaults" build
 
+
   android:
     runs-on: ubuntu-latest
     steps:
@@ -87,3 +88,14 @@ jobs:
       - name: Build APK and run protocol tests
         working-directory: android
         run: ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+
+  firmware-single-encoder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.4
+          target: esp32s3
+          path: firmware
+          command: idf.py -B build-single-encoder -D SDKCONFIG=sdkconfig.single-encoder -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.single-encoder.defaults" build

@@ -172,3 +172,14 @@ The commands above continue to build the serial-only variant.
 
 If SPI identity reads fail, use the separate [I²C identity diagnostic](imu-i2c-diagnostic.md)
 with its alternate wiring. Do not use I²C wiring with the SPI bench.
+
+## Verified encoder breakout supply wiring
+
+The tested AS5048A breakout requires **both** small pad 2 (chip pin 11) and
+the middle large pad (chip pin 12) connected to the same 3V3 supply. Small
+pad 1 connects to chip pin 13/GND; large P connects to chip pin 14/PWM and
+is unused. See the [single-encoder test and hardware confirmation](single-encoder-test.md)
+for pad order, serial commands, and the successful 2026-10-16 bench results.
+For a second encoder, use the same supply connections and SPI signals with
+CS GPIO16 instead of GPIO15. The second encoder has not been validated by
+this single-encoder test.

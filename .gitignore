@@ -30,3 +30,8 @@ firmware/sdkconfig.imu-i2c.old
 firmware/build-i2c-sensors/
 firmware/sdkconfig.i2c-sensors
 firmware/sdkconfig.i2c-sensors.old
+
+# Single encoder serial test
+firmware/build-single-encoder/
+firmware/sdkconfig.single-encoder
+firmware/sdkconfig.single-encoder.old

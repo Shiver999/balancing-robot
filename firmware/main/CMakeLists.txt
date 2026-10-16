@@ -17,6 +17,7 @@ idf_component_register(
         "drivers/imu_i2c_diagnostic.cpp"
         "drivers/esp_imu_i2c.cpp"
         "drivers/ble_status_led.cpp"
+        "drivers/single_encoder_test.cpp"
     INCLUDE_DIRS "include"
     REQUIRES esp_driver_rmt freertos log esp_timer esp_driver_spi esp_driver_gpio esp_driver_i2c bt nvs_flash
 )

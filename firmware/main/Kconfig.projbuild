@@ -1,8 +1,16 @@
 # Opt-in acquisition only; these settings do not enable motor drivers or balancing.
 menu "Robot sensor bench"
 
+config ROBOT_SINGLE_ENCODER_TEST
+    bool "Enable single AS5048A serial test (CS GPIO15)"
+    default n
+    help
+        Test one encoder on SCK7/MISO6/MOSI5/CS15. No IMU, BLE or motor
+        output is started. Reports raw angle, degrees and estimated speed.
+
 config ROBOT_IMU_I2C_DIAGNOSTIC
     bool "Enable identity-only IMU I2C diagnostic (requires alternate wiring)"
+    depends on !ROBOT_SINGLE_ENCODER_TEST
     default n
     help
         Probe 0x68/0x69 and read WHO_AM_I using SDA GPIO5 and SCL GPIO7.
@@ -11,7 +19,7 @@ config ROBOT_IMU_I2C_DIAGNOSTIC
 
 config ROBOT_SENSOR_BENCH
     bool "Enable real sensors in motor-disabled bench mode"
-    depends on !ROBOT_IMU_I2C_DIAGNOSTIC
+    depends on !ROBOT_IMU_I2C_DIAGNOSTIC && !ROBOT_SINGLE_ENCODER_TEST
     default n
     help
         Poll real MPU-6500/9250 and AS5048A sensors and log to serial. Confirm

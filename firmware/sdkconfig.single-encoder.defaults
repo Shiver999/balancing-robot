@@ -1,0 +1,4 @@
+# Standalone serial test: no IMU, BLE, motor diagnostic or paired sensor bench.
+CONFIG_ROBOT_SINGLE_ENCODER_TEST=y
+CONFIG_ROBOT_IMU_I2C_DIAGNOSTIC=n
+CONFIG_ROBOT_SENSOR_BENCH=n

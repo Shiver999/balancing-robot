@@ -74,3 +74,10 @@ keep BLE disabled. There is no command-write characteristic or motor enable.
 The bench defaults now use IMU I²C at SDA17/SCL4/address0x68 and encoder SPI
 at GPIO5/6/7 with CS15/16. See the updated wiring table before flashing; the
 identity-only diagnostic retains its separate GPIO5/7 I²C wiring.
+
+
+## Single-encoder bench
+
+For one encoder on CS GPIO15, use the separate
+[single-encoder test](../docs/software/single-encoder-test.md). It needs no IMU
+or second encoder and reports raw angle, degrees, and estimated speed over serial.
